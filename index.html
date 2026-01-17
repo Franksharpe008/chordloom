@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chordloom | AI Piano Loop Generator</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Tone.js (Audio Engine) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+    <!-- @tonejs/midi (MIDI Export) -->
+    <script src="https://unpkg.com/@tonejs/midi"></script>
+
+    <!-- Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+
+    <style>
+        /* Custom Styles & Animations */
+        body {
+            background-color: #0f0f11;
+            color: #e0e0e0;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            user-select: none;
+            /* Prevent highlighting while playing */
+        }
+
+        .accent {
+            color: #f97316;
+        }
+
+        /* Orange to match Logo */
+        .accent-bg {
+            background-color: #6366f1;
+        }
+
+        /* Piano Key Styling */
+        .white-key {
+            height: 100%;
+            background: #eee;
+            border-radius: 0 0 4px 4px;
+            transition: background 0.05s;
+            cursor: pointer;
+        }
+
+        .white-key:active,
+        .white-key.active {
+            background: #f97316;
+            /* Logo Orange when active */
+            background: linear-gradient(to bottom, #f97316, #c2410c);
+        }
+
+        .black-key {
+            height: 60%;
+            background: #111;
+            border-radius: 0 0 3px 3px;
+            z-index: 10;
+            position: absolute;
+            width: 8%;
+            transition: background 0.05s;
+            cursor: pointer;
+        }
+
+        .black-key:active,
+        .black-key.active {
+            background: #7c2d12;
+            background: linear-gradient(to bottom, #7c2d12, #000);
+        }
+
+        /* Timeline Bar Animation */
+        .bar-block {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .bar-block:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+        }
+
+        .bar-block.playing {
+            background-color: #f97316;
+            border-color: #fff;
+            color: white;
+            box-shadow: 0 0 15px rgba(249, 115, 22, 0.6);
+            transform: scale(1.05);
+        }
+
+        /* Scrollbar hiding */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+
+<body class="h-screen flex flex-col items-center justify-center relative selection:bg-orange-500 selection:text-white">
+
+    <!-- Start Overlay -->
+    <div id="start-overlay"
+        class="absolute inset-0 z-50 bg-black/95 flex flex-col items-center justify-center backdrop-blur-sm transition-opacity duration-500">
+        <!-- Logo -->
+        <div class="mb-6">
+            <img src="https://z-cdn-media.chatglm.cn/files/44056ed9-1efc-4863-842c-73b992840a07.png?auth_key=1868669281-91b95325dd294ffd9fa7a01d437af97f-0-30b56c7664e84c4e0b9df09507e63846"
+                alt="Chord Loom Logo" class="h-24 w-auto object-contain">
+        </div>
+        <h1 class="text-5xl font-extrabold tracking-tighter mb-2 text-white">Chordloom<span class="accent">.</span></h1>
+        <p class="text-gray-400 mb-8 font-mono text-sm">Retro Synth Engine (100% Functional)</p>
+        <button id="btn-start"
+            class="accent-bg px-8 py-3 rounded-full text-white font-bold tracking-wide hover:scale-105 transition-transform shadow-[0_0_30px_rgba(99,102,241,0.6)] animate-pulse">
+            ACTIVATE AUDIO
+        </button>
+        <p class="text-xs text-gray-500 mt-4 max-w-md text-center">
+            Square Wave Synth: Loudest/Clearest.<br>Click Keys to Play.
+        </p>
+    </div>
+
+    <!-- Main Application Container -->
+    <div id="app-container"
+        class="w-full max-w-6xl h-full max-h-[900px] flex flex-col p-6 opacity-0 transition-opacity duration-1000">
+
+        <!-- Header -->
+        <header class="flex justify-between items-end mb-4">
+            <div class="flex items-center gap-4">
+                <img src="https://z-cdn-media.chatglm.cn/files/44056ed9-1efc-4863-842c-73b992840a07.png?auth_key=1868669281-91b95325dd294ffd9fa7a01d437af97f-0-30b56c7664e84c4e0b9df09507e63846"
+                    alt="Chord Loom Logo" class="h-12 w-auto object-contain">
+                <div>
+                    <h1 class="text-3xl font-bold tracking-tight text-white">Chordloom</h1>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span id="status-light" class="w-2 h-2 rounded-full bg-red-500"></span>
+                        <span id="status-text" class="text-xs text-gray-400 font-mono tracking-wider">ENGINE OFF</span>
+                    </div>
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="text-xs text-gray-500 uppercase tracking-widest font-semibold mb-1">Export</div>
+                <div class="flex gap-3">
+                    <button id="btn-export-midi"
+                        class="px-3 py-1.5 border border-gray-700 rounded bg-gray-900 text-xs hover:border-orange-500 transition-colors flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-orange-500"></span> .MID
+                    </button>
+                    <button id="btn-export-wav"
+                        class="px-3 py-1.5 border border-gray-700 rounded bg-gray-900 text-xs hover:border-orange-500 transition-colors flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-indigo-500"></span> .WAV
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Control Panel -->
+        <div class="grid grid-cols-12 gap-4 mb-4 bg-[#1a1a1c] p-4 rounded-xl border border-gray-800 shadow-lg">
+            <!-- Genre -->
+            <div class="col-span-3 flex flex-col gap-1">
+                <label class="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Genre / Style</label>
+                <select id="select-genre"
+                    class="bg-black text-sm text-gray-200 p-2 rounded border border-gray-700 focus:border-orange-500 focus:outline-none transition-colors">
+                    <option value="trap">Trap / Dark</option>
+                    <option value="neo_soul">Neo-Soul / Keys</option>
+                    <option value="uk_drill">UK Drill</option>
+                    <option value="amapiano">Amapiano (SA)</option>
+                    <option value="hawaiian">Hawaiian / Island</option>
+                    <option value="cinematic">Cinematic / Score</option>
+                    <option value="lofi">Lo-Fi / Jazz</option>
+                </select>
+            </div>
+
+            <!-- Length -->
+            <div class="col-span-2 flex flex-col gap-1">
+                <label class="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Length</label>
+                <div class="flex bg-black rounded border border-gray-700 p-0.5">
+                    <button
+                        class="length-btn flex-1 py-1 text-xs rounded text-gray-400 hover:text-white transition-colors"
+                        data-val="4">4</button>
+                    <button class="length-btn flex-1 py-1 text-xs rounded bg-gray-800 text-white shadow-sm"
+                        data-val="16">16</button>
+                    <button
+                        class="length-btn flex-1 py-1 text-xs rounded text-gray-400 hover:text-white transition-colors"
+                        data-val="32">32</button>
+                </div>
+            </div>
+
+            <!-- Key -->
+            <div class="col-span-2 flex flex-col gap-1">
+                <label class="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Key (Transposed)</label>
+                <select id="select-key"
+                    class="bg-black text-sm text-gray-200 p-2 rounded border border-gray-700 focus:border-orange-500 focus:outline-none transition-colors">
+                    <option value="C">C Major / A Min</option>
+                    <option value="C#">C# Major / Bb Min</option>
+                    <option value="D">D Major / B Min</option>
+                    <option value="D#">D# Major / C Min</option>
+                    <option value="E">E Major / C# Min</option>
+                    <option value="F">F Major / D Min</option>
+                    <option value="F#">F# Major / Eb Min</option>
+                    <option value="G">G Major / E Min</option>
+                    <option value="G#">G# Major / F Min</option>
+                    <option value="A">A Major / F# Min</option>
+                    <option value="A#">A# Major / G Min</option>
+                    <option value="B">B Major / G# Min</option>
+                </select>
+            </div>
+
+            <!-- BPM -->
+            <div class="col-span-2 flex flex-col gap-1">
+                <label class="text-[10px] text-gray-500 uppercase font-bold tracking-wider">BPM: <span id="bpm-display"
+                        class="text-white">120</span></label>
+                <input type="range" id="input-bpm" min="60" max="170" value="120"
+                    class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-orange-500 mt-2">
+            </div>
+
+            <!-- Generate Button -->
+            <div class="col-span-3 flex items-end">
+                <button id="btn-generate"
+                    class="w-full accent-bg text-white font-bold py-2 rounded-lg shadow-lg hover:shadow-indigo-500/20 hover:brightness-110 active:scale-95 transition-all flex justify-center items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    GENERATE NEW
+                </button>
+            </div>
+        </div>
+
+        <!-- Timeline Visualizer -->
+        <div class="flex-1 flex flex-col min-h-0 mb-4">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="text-xs font-mono text-gray-400">PROGRESSION TIMELINE</h3>
+                <div class="flex gap-2">
+                    <button id="btn-play"
+                        class="w-8 h-8 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-700 hover:text-orange-500 transition-colors">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                                d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z">
+                            </path>
+                        </svg>
+                    </button>
+                    <button id="btn-stop"
+                        class="w-8 h-8 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-700 hover:text-red-500 transition-colors">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                                d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zM12.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z">
+                            </path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="relative w-full h-full bg-[#121214] rounded-xl border border-gray-800 p-4 overflow-hidden">
+                <div id="timeline-grid"
+                    class="grid grid-cols-4 gap-2 h-full items-center content-start overflow-y-auto no-scrollbar">
+                    <!-- Bars injected here by JS -->
+                    <div class="text-gray-600 text-sm font-mono col-span-4 text-center mt-10">Click Generate to start...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Piano Visualizer -->
+        <div
+            class="h-32 bg-black rounded-xl border border-gray-800 relative flex justify-center px-2 select-none overflow-hidden">
+            <div id="piano-keys" class="relative w-full h-full max-w-4xl flex">
+                <!-- Keys injected here by JS -->
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-2 text-center">
+            <p class="text-[10px] text-gray-600 font-mono">Engine: Tone.js PolySynth (Square Wave) | Transposition:
+                Active</p>
+        </div>
+
+    </div>
+
+    <!-- MAIN JAVASCRIPT LOGIC -->
+    <script>
+        // ==========================================
+        // 1. CONFIGURATION & STATE
+        // ==========================================
+        const CONFIG = {
+            synthVolume: 10, // VERY LOUD (Old School Style)
+            metroVolume: 0,
+            attack: 0.01,
+            release: 0.5
+        };
+
+        const STATE = {
+            isPlaying: false,
+            bpm: 120,
+            genre: 'trap',
+            keyRoot: 'C',
+            lengthBars: 16,
+            timeline: [],
+            isGenerating: false,
+            keySemitoneOffset: 0 // Fixed: Transposition logic
+        };
+
+        // ==========================================
+        // 2. MUSIC THEORY ENGINE
+        // ==========================================
+        const THEORY = {
+            scales: {
+                major: [0, 2, 4, 5, 7, 9, 11],
+                minor: [0, 2, 3, 5, 7, 8, 10],
+                harmonicMinor: [0, 2, 3, 5, 7, 8, 11],
+                dorian: [0, 2, 3, 5, 7, 9, 10],
+                phrygianDom: [0, 1, 4, 5, 7, 8, 10]
+            },
+            genres: {
+                trap: { scale: 'minor', complexity: 1, density: 0.3 },
+                neo_soul: { scale: 'dorian', complexity: 3, density: 0.6 },
+                uk_drill: { scale: 'minor', complexity: 2, density: 0.4 },
+                amapiano: { scale: 'major', complexity: 3, density: 0.5 },
+                hawaiian: { scale: 'major', complexity: 2, density: 0.2 },
+                cinematic: { scale: 'harmonicMinor', complexity: 3, density: 0.2 },
+                lofi: { scale: 'major', complexity: 2, density: 0.4 }
+            }
+        };
+
+        // Calculate semitone offset from C (0)
+        const KEY_OFFSETS = {
+            "C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5,
+            "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11
+        };
+
+        function getMidi(noteName, octave) {
+            const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+            const semitone = notes.indexOf(noteName);
+            return 12 + (12 * octave) + semitone;
+        }
+
+        function getNoteName(midi) {
+            const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+            const octave = Math.floor(midi / 12) - 1;
+            const noteIndex = midi % 12;
+            return notes[noteIndex] + octave;
+        }
+
+        // ==========================================
+        // 3. AUDIO ENGINE (OLD SCHOOL SQUARE WAVE)
+        // ==========================================
+        let synth, metronome, chordLoop;
+
+        async function initAudio() {
+            // 1. Force Audio Context Start
+            await Tone.start();
+
+            // 2. Force Resume (Crucial)
+            if (Tone.context.state !== 'running') {
+                await Tone.context.resume();
+            }
+
+            // UI Update
+            document.getElementById('start-overlay').classList.add('hidden');
+            document.getElementById('app-container').style.opacity = '1';
+
+            // Status Update
+            document.getElementById('status-light').classList.replace('bg-red-500', 'bg-green-500');
+            document.getElementById('status-text').innerText = "ENGINE ONLINE";
+            document.getElementById('status-text').classList.add('text-white');
+
+            // 3. Create Metronome
+            metronome = new Tone.MembraneSynth({
+                pitchDecay: 0.001,
+                octaves: 10,
+                oscillator: { type: "square" }, // Square wave beep
+                envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.1 }
+            }).toDestination();
+            metronome.volume.value = CONFIG.metroVolume;
+
+            // 4. Create MAIN Synth (Old School Square)
+            synth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "square" }, // LOUD SQUARE WAVE
+                envelope: {
+                    attack: CONFIG.attack,
+                    decay: 0.1,
+                    sustain: 0.1,
+                    release: CONFIG.release
+                }
+            }).toDestination();
+            synth.volume.value = CONFIG.synthVolume;
+
+            // 5. Set BPM
+            Tone.Transport.bpm.value = STATE.bpm;
+
+            // 6. THE LOOP (Fixed)
+            chordLoop = new Tone.Loop((time) => {
+                const currentBarIndex = chordLoop.iteration;
+
+                if (!STATE.timeline || STATE.timeline.length === 0) return;
+
+                if (currentBarIndex < STATE.timeline.length) {
+                    const bar = STATE.timeline[currentBarIndex];
+
+                    // Metronome
+                    if (currentBarIndex % 4 === 0) {
+                        metronome.triggerAttackRelease("C7", 0.05, time, 1);
+                    } else {
+                        metronome.triggerAttackRelease("C6", 0.05, time, 0.5);
+                    }
+
+                    // Play Chord
+                    bar.notes.forEach(note => {
+                        synth.triggerAttackRelease(note, "2n", time);
+                    });
+
+                    // Visuals
+                    Tone.Draw.schedule(() => {
+                        highlightBar(currentBarIndex);
+                        highlightPiano(bar.notes);
+                    }, time);
+                }
+            }, "1m");
+
+            chordLoop.start(0);
+        }
+
+        // ==========================================
+        // 4. GENERATOR LOGIC (TRANSPOSE FIX)
+        // ==========================================
+        function generateProgression() {
+            STATE.isGenerating = true;
+
+            const genre = THEORY.genres[STATE.genre];
+            const patterns = {
+                simple: [0, 5, 3, 4],
+                trap: [0, 5, 0, 5],
+                soul: [0, 5, 3, 4],
+                hawaii: [0, 5, 4, 0],
+                drill: [0, 1, 0, 1]
+            };
+
+            let pattern = patterns.simple;
+            if (STATE.genre === 'trap') pattern = patterns.trap;
+            if (STATE.genre === 'neo_soul') pattern = patterns.soul;
+            if (STATE.genre === 'uk_drill') pattern = patterns.drill;
+            if (STATE.genre === 'hawaiian') pattern = patterns.hawaii;
+
+            STATE.timeline = [];
+            const bars = STATE.lengthBars;
+            const scale = THEORY.scales[genre.scale];
+            const baseKeyOffset = KEY_OFFSETS[STATE.keyRoot];
+
+            for (let i = 0; i < bars; i++) {
+                const variation = Math.floor(Math.random() * pattern.length);
+                const degree = pattern[(i + variation) % pattern.length];
+
+                // Base MIDI (C3 = 48) + Scale Degree
+                let rootMidi = 48 + degree;
+
+                // TRANSPOSITION FIX: Add the selected key offset
+                rootMidi = rootMidi + baseKeyOffset;
+
+                const third = rootMidi + scale[2];
+                const fifth = rootMidi + scale[4];
+
+                let notes = [rootMidi, third, fifth];
+                if (genre.complexity > 1) notes.push(rootMidi + scale[6]);
+                if (genre.complexity > 2) notes.push(rootMidi + scale[1] + 12);
+
+                notes = notes.sort((a, b) => a - b);
+                if (notes.length > 3) {
+                    notes[2] += 12;
+                }
+
+                // Mock name
+                const chordName = STATE.keyRoot + (genre.scale === 'minor' ? "m" : "") + "7";
+
+                STATE.timeline.push({
+                    barIndex: i,
+                    name: chordName,
+                    notes: notes,
+                    duration: 1
+                });
+            }
+
+            renderTimeline();
+            STATE.isGenerating = false;
+        }
+
+        // ==========================================
+        // 5. PIANO KEY INTERACTION (NEW)
+        // ==========================================
+        function triggerKey(midi) {
+            if (synth) synth.triggerAttackRelease(midi, "8n");
+        }
+
+        function renderPiano() {
+            const container = document.getElementById('piano-keys');
+            const whiteNotes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+            // Simplify mapping for click-to-play
+            const baseOctave = 3;
+
+            let whiteKeyIndex = 0;
+            const totalWhiteKeys = 24;
+
+            for (let i = 0; i < totalWhiteKeys; i++) {
+                const octave = baseOctave + Math.floor(i / 7);
+                const noteName = whiteNotes[i % 7];
+                const midi = getMidi(noteName, octave);
+
+                const wk = document.createElement('div');
+                wk.className = 'white-key flex-1 border-r border-gray-300 relative key';
+                wk.dataset.midi = midi;
+                wk.dataset.note = noteName + octave;
+                container.appendChild(wk);
+
+                // Event Listeners for Mouse/Touch
+                const playNote = (e) => {
+                    e.preventDefault();
+                    triggerKey(midi);
+                    wk.classList.add('active');
+                };
+                const stopNote = (e) => {
+                    e.preventDefault();
+                    wk.classList.remove('active');
+                };
+
+                wk.addEventListener('mousedown', playNote);
+                wk.addEventListener('mouseup', stopNote);
+                wk.addEventListener('touchstart', playNote, { passive: false });
+                wk.addEventListener('touchend', stopNote);
+
+                // Black Key
+                const bnIndex = i % 7;
+                const blackNotes = ["C#", "D#", null, "F#", "G#", "A#", null];
+
+                if (blackNotes[bnIndex]) {
+                    const bk = document.createElement('div');
+                    bk.className = 'black-key key';
+                    bk.dataset.midi = getMidi(blackNotes[bnIndex], octave);
+                    bk.style.left = `calc(${whiteKeyIndex + 1} * 100% / 24 - 4%)`;
+                    container.appendChild(bk);
+
+                    const playBlack = (e) => {
+                        e.stopPropagation(); // Stop white key trigger
+                        e.preventDefault();
+                        triggerKey(bk.dataset.midi);
+                        bk.classList.add('active');
+                    };
+                    const stopBlack = (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        bk.classList.remove('active');
+                    };
+
+                    bk.addEventListener('mousedown', playBlack);
+                    bk.addEventListener('mouseup', stopBlack);
+                    bk.addEventListener('touchstart', playBlack, { passive: false });
+                    bk.addEventListener('touchend', stopBlack);
+                }
+                whiteKeyIndex++;
+            }
+        }
+
+        // ==========================================
+        // 6. TRANSPORT CONTROLS
+        // ==========================================
+        function togglePlay() {
+            if (STATE.isPlaying) {
+                Tone.Transport.stop();
+                STATE.isPlaying = false;
+                document.getElementById('btn-play').innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"></path></svg>';
+            } else {
+                if (Tone.context.state !== 'running') Tone.context.resume();
+                Tone.Transport.start();
+                STATE.isPlaying = true;
+                document.getElementById('btn-play').innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>';
+            }
+        }
+
+        function stop() {
+            Tone.Transport.stop();
+            synth.releaseAll();
+            STATE.isPlaying = false;
+            document.getElementById('btn-play').innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"></path></svg>';
+            document.querySelectorAll('.bar-block').forEach(b => b.classList.remove('playing'));
+            document.querySelectorAll('.active').forEach(k => k.classList.remove('active'));
+        }
+
+        // ==========================================
+        // 7. UI RENDERING
+        // ==========================================
+
+        function renderTimeline() {
+            const grid = document.getElementById('timeline-grid');
+            grid.innerHTML = '';
+            grid.style.display = 'flex';
+            grid.style.flexWrap = 'wrap';
+            grid.style.gap = '0.5rem';
+            grid.style.alignContent = 'flex-start';
+
+            STATE.timeline.forEach((bar, idx) => {
+                const el = document.createElement('div');
+                el.className = 'bar-block bg-gray-800 border border-gray-700 rounded-lg p-3 flex-1 min-w-[80px] cursor-pointer';
+                el.id = `bar-${idx}`;
+                el.innerHTML = `
+                    <div class="text-[10px] text-gray-500 font-bold">BAR ${idx + 1}</div>
+                    <div class="text-sm text-white font-bold mt-1">${bar.name}</div>
+                    <div class="text-[9px] text-gray-400 font-mono mt-1">${bar.notes.length} Notes</div>
+                `;
+                grid.appendChild(el);
+            });
+        }
+
+        function highlightBar(index) {
+            document.querySelectorAll('.bar-block').forEach(b => b.classList.remove('playing'));
+            const el = document.getElementById(`bar-${index}`);
+            if (el) el.classList.add('playing');
+        }
+
+        function highlightPiano(midiNotes) {
+            document.querySelectorAll('.active').forEach(k => k.classList.remove('active'));
+            midiNotes.forEach(midi => {
+                const keyEl = document.querySelector(`.key[data-midi="${midi}"]`);
+                if (keyEl) keyEl.classList.add('active');
+            });
+        }
+
+        // ==========================================
+        // 8. EXPORT LOGIC
+        // ==========================================
+
+        function bufferToWave(abuffer, len) {
+            let numOfChan = abuffer.numberOfChannels,
+                length = len * numOfChan * 2 + 44,
+                buffer = new ArrayBuffer(length),
+                view = new DataView(buffer),
+                channels = [], i, sample, offset = 0, pos = 0;
+
+            setUint32(0x46464952); setUint32(length - 8); setUint32(0x45564157);
+            setUint32(0x20746d66); setUint32(16); setUint16(1); setUint16(numOfChan);
+            setUint32(abuffer.sampleRate);
+            setUint32(abuffer.sampleRate * 2 * numOfChan);
+            setUint16(numOfChan * 2); setUint16(16);
+            setUint32(0x61746164); setUint32(length - pos - 4);
+
+            for (i = 0; i < abuffer.numberOfChannels; i++) channels.push(abuffer.getChannelData(i));
+
+            while (pos < len) {
+                for (i = 0; i < numOfChan; i++) {
+                    sample = Math.max(-1, Math.min(1, channels[i][pos]));
+                    sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+                    view.setInt16(44 + offset, sample, true);
+                    offset += 2;
+                }
+                pos++;
+            }
+            return new Blob([buffer], { type: "audio/wav" });
+
+            function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
+            function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
+        }
+
+        async function exportMidi() {
+            const midi = new Midi();
+            midi.header.setTempo(STATE.bpm);
+            const track = midi.addTrack();
+
+            STATE.timeline.forEach((bar, index) => {
+                const startTime = index * 4;
+                bar.notes.forEach(note => {
+                    track.addNote({ midi: note, time: startTime, duration: 2 });
+                });
+            });
+
+            const midiData = midi.toArray();
+            const blob = new Blob([midiData], { type: "audio/midi" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `chordloom_${STATE.genre}_${STATE.keyRoot}.mid`;
+            a.click();
+        }
+
+        async function exportWav() {
+            const duration = (STATE.lengthBars * 4 * 60) / STATE.bpm + 2;
+
+            const renderedBuffer = await Tone.Offline(({ transport }) => {
+                const offlineSynth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "square" },
+                    envelope: { attack: CONFIG.attack, decay: 0.1, sustain: 0, release: CONFIG.release }
+                }).toDestination();
+                const offlineMetro = new Tone.MembraneSynth({
+                    pitchDecay: 0.001, octaves: 10, oscillator: { type: "square" },
+                    envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.1 }
+                }).toDestination();
+                offlineMetro.volume.value = 0;
+                offlineSynth.volume.value = CONFIG.synthVolume;
+
+                STATE.timeline.forEach((bar) => {
+                    const barStart = (bar.barIndex * 4) * (60 / STATE.bpm);
+
+                    if (bar.barIndex % 4 === 0) {
+                        offlineMetro.triggerAttackRelease("C7", 0.05, barStart, 1);
+                    } else {
+                        offlineMetro.triggerAttackRelease("C6", 0.05, barStart, 0.5);
+                    }
+
+                    bar.notes.forEach(midi => {
+                        offlineSynth.triggerAttackRelease(midi, "2n", barStart);
+                    });
+                });
+
+            }, duration);
+
+            const wavBlob = bufferToWave(renderedBuffer, renderedBuffer.length);
+            const url = URL.createObjectURL(wavBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `chordloom_${STATE.genre}_${STATE.keyRoot}.wav`;
+            a.click();
+        }
+
+
+        // ==========================================
+        // 9. EVENT LISTENERS
+        // ==========================================
+        document.getElementById('btn-start').addEventListener('click', initAudio);
+        document.getElementById('btn-play').addEventListener('click', togglePlay);
+        document.getElementById('btn-stop').addEventListener('click', stop);
+
+        document.getElementById('btn-generate').addEventListener('click', () => {
+            const btn = document.getElementById('btn-generate');
+            btn.innerHTML = `Generating...`;
+            setTimeout(() => {
+                generateProgression();
+                btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> GENERATE NEW`;
+                if (!STATE.isPlaying) togglePlay();
+            }, 200);
+        });
+
+        document.getElementById('select-genre').addEventListener('change', (e) => STATE.genre = e.target.value);
+        document.getElementById('select-key').addEventListener('change', (e) => STATE.keyRoot = e.target.value);
+
+        document.getElementById('input-bpm').addEventListener('input', (e) => {
+            STATE.bpm = parseInt(e.target.value);
+            document.getElementById('bpm-display').innerText = STATE.bpm;
+            Tone.Transport.bpm.value = STATE.bpm;
+        });
+
+        document.querySelectorAll('.length-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.length-btn').forEach(b => {
+                    b.classList.remove('bg-gray-800', 'text-white', 'shadow-sm');
+                    b.classList.add('text-gray-400');
+                });
+                e.target.classList.remove('text-gray-400');
+                e.target.classList.add('bg-gray-800', 'text-white', 'shadow-sm');
+                STATE.lengthBars = parseInt(e.target.dataset.val);
+            });
+        });
+
+        document.getElementById('btn-export-midi').addEventListener('click', exportMidi);
+        document.getElementById('btn-export-wav').addEventListener('click', exportWav);
+
+        renderPiano();
+
+    </script>
+</body>
+
+</html>
