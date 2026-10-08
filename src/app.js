@@ -1161,17 +1161,23 @@ for (const name of ["rhythm", "humanize"])
   };
 $("humanize").oninput = () =>
   ($("humanize-value").textContent = $("humanize").value + "%");
-$("bpm").onchange = () => {
-  try {
-    const s = settingsFromControls();
+function updateTempo() {
+  const bpm = Number($("bpm").value);
+  if (!Number.isFinite(bpm) || bpm < 45 || bpm > 190) return false;
+  if (bpm !== project.settings.bpm) {
     pushUndo();
-    project.settings.bpm = s.bpm;
+    project.settings.bpm = bpm;
     syncAudio();
     changed();
     status("Tempo updated for playback and exports.");
-  } catch (e) {
+  }
+  return true;
+}
+$("bpm").oninput = updateTempo;
+$("bpm").onchange = () => {
+  if (!updateTempo()) {
     $("bpm").value = project.settings.bpm;
-    status(e.message, true);
+    status("Choose a tempo from 45 to 190 BPM.", true);
   }
 };
 for (const node of document.querySelectorAll("[data-layer]"))
