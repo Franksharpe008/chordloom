@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chordloom | AI Piano Loop Generator</title>
+    <title>Chordloom | Generative Piano Loop Studio</title>
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -62,7 +62,7 @@
             border-radius: 0 0 3px 3px;
             z-index: 10;
             position: absolute;
-            width: 8%;
+            width: 2.4%;
             transition: background 0.05s;
             cursor: pointer;
         }
@@ -114,18 +114,18 @@
                 alt="Chord Loom Logo" class="h-24 w-auto object-contain">
         </div>
         <h1 class="text-5xl font-extrabold tracking-tighter mb-2 text-white">Chordloom<span class="accent">.</span></h1>
-        <p class="text-gray-400 mb-8 font-mono text-sm">Retro Synth Engine (100% Functional)</p>
+        <p class="text-gray-400 mb-8 font-mono text-sm">Generative Piano Loop Studio</p>
         <button id="btn-start"
             class="accent-bg px-8 py-3 rounded-full text-white font-bold tracking-wide hover:scale-105 transition-transform shadow-[0_0_30px_rgba(99,102,241,0.6)] animate-pulse">
             ACTIVATE AUDIO
         </button>
-        <p class="text-xs text-gray-500 mt-4 max-w-md text-center">
-            Square Wave Synth: Loudest/Clearest.<br>Click Keys to Play.
+        <p id="audio-load-status" role="status" class="text-xs text-gray-500 mt-4 max-w-md text-center">
+            Recorded Yamaha grand piano. Click to load the instrument, then play or generate a loop.
         </p>
     </div>
 
     <!-- Main Application Container -->
-    <div id="app-container"
+    <div id="app-container" inert
         class="w-full max-w-6xl h-full max-h-[900px] flex flex-col p-6 opacity-0 transition-opacity duration-1000">
 
         <!-- Header -->
@@ -193,18 +193,18 @@
                 <label class="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Key (Transposed)</label>
                 <select id="select-key"
                     class="bg-black text-sm text-gray-200 p-2 rounded border border-gray-700 focus:border-orange-500 focus:outline-none transition-colors">
-                    <option value="C">C Major / A Min</option>
-                    <option value="C#">C# Major / Bb Min</option>
-                    <option value="D">D Major / B Min</option>
-                    <option value="D#">D# Major / C Min</option>
-                    <option value="E">E Major / C# Min</option>
-                    <option value="F">F Major / D Min</option>
-                    <option value="F#">F# Major / Eb Min</option>
-                    <option value="G">G Major / E Min</option>
-                    <option value="G#">G# Major / F Min</option>
-                    <option value="A">A Major / F# Min</option>
-                    <option value="A#">A# Major / G Min</option>
-                    <option value="B">B Major / G# Min</option>
+                    <option value="C">C</option>
+                    <option value="C#">C#</option>
+                    <option value="D">D</option>
+                    <option value="D#">D#</option>
+                    <option value="E">E</option>
+                    <option value="F">F</option>
+                    <option value="F#">F#</option>
+                    <option value="G">G</option>
+                    <option value="G#">G#</option>
+                    <option value="A">A</option>
+                    <option value="A#">A#</option>
+                    <option value="B">B</option>
                 </select>
             </div>
 
@@ -234,7 +234,7 @@
             <div class="flex justify-between items-center mb-2">
                 <h3 class="text-xs font-mono text-gray-400">PROGRESSION TIMELINE</h3>
                 <div class="flex gap-2">
-                    <button id="btn-play"
+                    <button id="btn-play" aria-label="Play progression"
                         class="w-8 h-8 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-700 hover:text-orange-500 transition-colors">
                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path
@@ -242,7 +242,7 @@
                             </path>
                         </svg>
                     </button>
-                    <button id="btn-stop"
+                    <button id="btn-stop" aria-label="Stop playback"
                         class="w-8 h-8 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-700 hover:text-red-500 transition-colors">
                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path
@@ -272,8 +272,7 @@
 
         <!-- Footer -->
         <div class="mt-2 text-center">
-            <p class="text-[10px] text-gray-600 font-mono">Engine: Tone.js PolySynth (Square Wave) | Transposition:
-                Active</p>
+            <p class="text-[10px] text-gray-600 font-mono">Salamander Grand Piano · Alexander Holm · <a class="underline" href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener noreferrer">CC BY 3.0</a></p>
         </div>
 
     </div>
@@ -284,10 +283,9 @@
         // 1. CONFIGURATION & STATE
         // ==========================================
         const CONFIG = {
-            synthVolume: 10, // VERY LOUD (Old School Style)
-            metroVolume: 0,
-            attack: 0.01,
-            release: 0.5
+            synthVolume: -10, // Leave headroom for stacked piano notes.
+            attack: 0,
+            release: 1.2
         };
 
         const STATE = {
@@ -343,82 +341,69 @@
         }
 
         // ==========================================
-        // 3. AUDIO ENGINE (OLD SCHOOL SQUARE WAVE)
+        // 3. SAMPLED GRAND PIANO
         // ==========================================
-        let synth, metronome, chordLoop;
+        let playbackBar = 0;
+        let synth, chordLoop;
+        const pianoBuffers = {};
+        const PIANO_SAMPLES = Object.fromEntries(
+            [2, 3, 4, 5].flatMap(octave => ["C", "D#", "F#", "A"].map(note =>
+                [note + octave, `samples/piano/${note.replace("#", "s")}${octave}.mp3`]
+            )).concat([["C6", "samples/piano/C6.mp3"]])
+        );
+
+        function createPiano() {
+            // Decoded recordings are reused for live playback and offline WAV rendering.
+            return new Tone.Sampler({
+                urls: pianoBuffers,
+                attack: CONFIG.attack,
+                release: CONFIG.release,
+                volume: CONFIG.synthVolume
+            }).toDestination();
+        }
 
         async function initAudio() {
-            // 1. Force Audio Context Start
-            await Tone.start();
-
-            // 2. Force Resume (Crucial)
-            if (Tone.context.state !== 'running') {
-                await Tone.context.resume();
-            }
-
-            // UI Update
-            document.getElementById('start-overlay').classList.add('hidden');
-            document.getElementById('app-container').style.opacity = '1';
-
-            // Status Update
-            document.getElementById('status-light').classList.replace('bg-red-500', 'bg-green-500');
-            document.getElementById('status-text').innerText = "ENGINE ONLINE";
-            document.getElementById('status-text').classList.add('text-white');
-
-            // 3. Create Metronome
-            metronome = new Tone.MembraneSynth({
-                pitchDecay: 0.001,
-                octaves: 10,
-                oscillator: { type: "square" }, // Square wave beep
-                envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.1 }
-            }).toDestination();
-            metronome.volume.value = CONFIG.metroVolume;
-
-            // 4. Create MAIN Synth (Old School Square)
-            synth = new Tone.PolySynth(Tone.Synth, {
-                oscillator: { type: "square" }, // LOUD SQUARE WAVE
-                envelope: {
-                    attack: CONFIG.attack,
-                    decay: 0.1,
-                    sustain: 0.1,
-                    release: CONFIG.release
-                }
-            }).toDestination();
-            synth.volume.value = CONFIG.synthVolume;
-
-            // 5. Set BPM
-            Tone.Transport.bpm.value = STATE.bpm;
-
-            // 6. THE LOOP (Fixed)
-            chordLoop = new Tone.Loop((time) => {
-                const currentBarIndex = chordLoop.iteration;
-
-                if (!STATE.timeline || STATE.timeline.length === 0) return;
-
-                if (currentBarIndex < STATE.timeline.length) {
-                    const bar = STATE.timeline[currentBarIndex];
-
-                    // Metronome
-                    if (currentBarIndex % 4 === 0) {
-                        metronome.triggerAttackRelease("C7", 0.05, time, 1);
-                    } else {
-                        metronome.triggerAttackRelease("C6", 0.05, time, 0.5);
-                    }
-
-                    // Play Chord
-                    bar.notes.forEach(note => {
-                        synth.triggerAttackRelease(note, "2n", time);
-                    });
-
-                    // Visuals
+            const button = document.getElementById('btn-start');
+            const status = document.getElementById('audio-load-status');
+            button.disabled = true;
+            button.textContent = 'LOADING GRAND PIANO';
+            status.textContent = 'Loading recorded piano notes…';
+            try {
+                await Tone.start();
+                if (Tone.context.state !== 'running') await Tone.context.resume();
+                let loaded = Object.keys(pianoBuffers).length;
+                const sampleResults = await Promise.allSettled(Object.entries(PIANO_SAMPLES).map(async ([note, url]) => {
+                    if (pianoBuffers[note]) return;
+                    const buffer = await Tone.ToneAudioBuffer.fromUrl(url);
+                    pianoBuffers[note] = buffer.get();
+                    status.textContent = `Loading piano recordings: ${++loaded}/${Object.keys(PIANO_SAMPLES).length}`;
+                }));
+                const failedSample = sampleResults.find(result => result.status === 'rejected');
+                if (failedSample) throw failedSample.reason;
+                synth = createPiano();
+                Tone.Transport.bpm.value = STATE.bpm;
+                chordLoop = new Tone.Loop(time => {
+                    if (!STATE.timeline.length) return;
+                    const index = playbackBar++ % STATE.timeline.length;
+                    const bar = STATE.timeline[index];
+                    synth.triggerAttackRelease(bar.notes.map(getNoteName), '2n', time, 0.8);
                     Tone.Draw.schedule(() => {
-                        highlightBar(currentBarIndex);
+                        highlightBar(index);
                         highlightPiano(bar.notes);
                     }, time);
-                }
-            }, "1m");
-
-            chordLoop.start(0);
+                }, '1m').start(0);
+                document.getElementById('start-overlay').classList.add('hidden');
+                document.getElementById('app-container').style.opacity = '1';
+                document.getElementById('app-container').inert = false;
+                document.getElementById('status-light').classList.replace('bg-red-500', 'bg-green-500');
+                document.getElementById('status-text').textContent = 'GRAND PIANO READY';
+                generateProgression();
+            } catch (error) {
+                console.error('Piano loading failed', error);
+                status.textContent = 'The piano could not load. Check your connection and try again.';
+                button.disabled = false;
+                button.textContent = 'RETRY PIANO LOAD';
+            }
         }
 
         // ==========================================
@@ -443,6 +428,7 @@
             if (STATE.genre === 'hawaiian') pattern = patterns.hawaii;
 
             STATE.timeline = [];
+            playbackBar = 0;
             const bars = STATE.lengthBars;
             const scale = THEORY.scales[genre.scale];
             const baseKeyOffset = KEY_OFFSETS[STATE.keyRoot];
@@ -469,8 +455,12 @@
                     notes[2] += 12;
                 }
 
-                // Mock name
-                const chordName = STATE.keyRoot + (genre.scale === 'minor' ? "m" : "") + "7";
+                // Label the notes actually generated, rather than repeating the selected key.
+                const thirdInterval = (third - rootMidi) % 12;
+                const seventhInterval = scale[6];
+                const quality = thirdInterval === 3 ? 'm' : '';
+                const extension = notes.length > 3 ? (seventhInterval === 11 ? 'maj7' : '7') : '';
+                const chordName = getNoteName(rootMidi).replace(/\d+$/, '') + quality + extension + (notes.length > 4 ? ' add9' : '');
 
                 STATE.timeline.push({
                     barIndex: i,
@@ -488,12 +478,12 @@
         // 5. PIANO KEY INTERACTION (NEW)
         // ==========================================
         function triggerKey(midi) {
-            if (synth) synth.triggerAttackRelease(midi, "8n");
+            if (synth) synth.triggerAttackRelease(Tone.Frequency(Number(midi), "midi").toNote(), "8n");
         }
 
         function renderPiano() {
             const container = document.getElementById('piano-keys');
-            const whiteNotes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+            const whiteNotes = ["C", "D", "E", "F", "G", "A", "B"];
             // Simplify mapping for click-to-play
             const baseOctave = 3;
 
@@ -505,7 +495,9 @@
                 const noteName = whiteNotes[i % 7];
                 const midi = getMidi(noteName, octave);
 
-                const wk = document.createElement('div');
+                const wk = document.createElement('button');
+                wk.type = 'button';
+                wk.setAttribute('aria-label', 'Play ' + noteName + octave);
                 wk.className = 'white-key flex-1 border-r border-gray-300 relative key';
                 wk.dataset.midi = midi;
                 wk.dataset.note = noteName + octave;
@@ -526,16 +518,20 @@
                 wk.addEventListener('mouseup', stopNote);
                 wk.addEventListener('touchstart', playNote, { passive: false });
                 wk.addEventListener('touchend', stopNote);
+                wk.addEventListener('keydown', e => { if (!e.repeat && (e.key === 'Enter' || e.key === ' ')) playNote(e); });
+                wk.addEventListener('keyup', stopNote);
 
                 // Black Key
                 const bnIndex = i % 7;
                 const blackNotes = ["C#", "D#", null, "F#", "G#", "A#", null];
 
                 if (blackNotes[bnIndex]) {
-                    const bk = document.createElement('div');
+                    const bk = document.createElement('button');
+                    bk.type = 'button';
+                    bk.setAttribute('aria-label', 'Play ' + blackNotes[bnIndex] + octave);
                     bk.className = 'black-key key';
                     bk.dataset.midi = getMidi(blackNotes[bnIndex], octave);
-                    bk.style.left = `calc(${whiteKeyIndex + 1} * 100% / 24 - 4%)`;
+                    bk.style.left = `calc(${whiteKeyIndex + 1} * 100% / 24 - 1.2%)`;
                     container.appendChild(bk);
 
                     const playBlack = (e) => {
@@ -554,6 +550,8 @@
                     bk.addEventListener('mouseup', stopBlack);
                     bk.addEventListener('touchstart', playBlack, { passive: false });
                     bk.addEventListener('touchend', stopBlack);
+                    bk.addEventListener('keydown', e => { if (!e.repeat && (e.key === 'Enter' || e.key === ' ')) playBlack(e); });
+                    bk.addEventListener('keyup', stopBlack);
                 }
                 whiteKeyIndex++;
             }
@@ -563,22 +561,29 @@
         // 6. TRANSPORT CONTROLS
         // ==========================================
         function togglePlay() {
+            if (!synth || !STATE.timeline.length) return;
             if (STATE.isPlaying) {
-                Tone.Transport.stop();
+                Tone.Transport.pause();
+                synth.releaseAll();
                 STATE.isPlaying = false;
+                document.getElementById('btn-play').setAttribute('aria-label', 'Play progression');
                 document.getElementById('btn-play').innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"></path></svg>';
             } else {
                 if (Tone.context.state !== 'running') Tone.context.resume();
                 Tone.Transport.start();
                 STATE.isPlaying = true;
+                document.getElementById('btn-play').setAttribute('aria-label', 'Pause progression');
                 document.getElementById('btn-play').innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>';
             }
         }
 
         function stop() {
+            if (!synth) return;
+            playbackBar = 0;
             Tone.Transport.stop();
             synth.releaseAll();
             STATE.isPlaying = false;
+            document.getElementById('btn-play').setAttribute('aria-label', 'Play progression');
             document.getElementById('btn-play').innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"></path></svg>';
             document.querySelectorAll('.bar-block').forEach(b => b.classList.remove('playing'));
             document.querySelectorAll('.active').forEach(k => k.classList.remove('active'));
@@ -646,7 +651,7 @@
             while (pos < len) {
                 for (i = 0; i < numOfChan; i++) {
                     sample = Math.max(-1, Math.min(1, channels[i][pos]));
-                    sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+                    sample = Math.round(sample < 0 ? sample * 32768 : sample * 32767);
                     view.setInt16(44 + offset, sample, true);
                     offset += 2;
                 }
@@ -662,11 +667,12 @@
             const midi = new Midi();
             midi.header.setTempo(STATE.bpm);
             const track = midi.addTrack();
+            track.instrument.number = 0; // General MIDI acoustic grand piano.
 
             STATE.timeline.forEach((bar, index) => {
-                const startTime = index * 4;
+                const startTime = index * 4 * 60 / STATE.bpm;
                 bar.notes.forEach(note => {
-                    track.addNote({ midi: note, time: startTime, duration: 2 });
+                    track.addNote({ midi: note, time: startTime, duration: 2 * 60 / STATE.bpm });
                 });
             });
 
@@ -677,45 +683,41 @@
             a.href = url;
             a.download = `chordloom_${STATE.genre}_${STATE.keyRoot}.mid`;
             a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
 
         async function exportWav() {
-            const duration = (STATE.lengthBars * 4 * 60) / STATE.bpm + 2;
-
-            const renderedBuffer = await Tone.Offline(({ transport }) => {
-                const offlineSynth = new Tone.PolySynth(Tone.Synth, {
-                    oscillator: { type: "square" },
-                    envelope: { attack: CONFIG.attack, decay: 0.1, sustain: 0, release: CONFIG.release }
-                }).toDestination();
-                const offlineMetro = new Tone.MembraneSynth({
-                    pitchDecay: 0.001, octaves: 10, oscillator: { type: "square" },
-                    envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.1 }
-                }).toDestination();
-                offlineMetro.volume.value = 0;
-                offlineSynth.volume.value = CONFIG.synthVolume;
-
-                STATE.timeline.forEach((bar) => {
-                    const barStart = (bar.barIndex * 4) * (60 / STATE.bpm);
-
-                    if (bar.barIndex % 4 === 0) {
-                        offlineMetro.triggerAttackRelease("C7", 0.05, barStart, 1);
-                    } else {
-                        offlineMetro.triggerAttackRelease("C6", 0.05, barStart, 0.5);
-                    }
-
-                    bar.notes.forEach(midi => {
-                        offlineSynth.triggerAttackRelease(midi, "2n", barStart);
+            if (!synth || !STATE.timeline.length) return;
+            const button = document.getElementById('btn-export-wav');
+            const timeline = STATE.timeline.map(bar => ({ ...bar, notes: [...bar.notes] }));
+            const bpm = STATE.bpm;
+            const duration = timeline.length * 4 * 60 / bpm + CONFIG.release + 0.5;
+            button.disabled = true;
+            button.textContent = 'RENDERING…';
+            try {
+                const renderedBuffer = await Tone.Offline(({ transport }) => {
+                    transport.bpm.value = bpm;
+                    const piano = createPiano();
+                    timeline.forEach((bar, index) => {
+                        piano.triggerAttackRelease(bar.notes.map(getNoteName), 2 * 60 / bpm,
+                            index * 4 * 60 / bpm, 0.8);
                     });
-                });
-
-            }, duration);
-
-            const wavBlob = bufferToWave(renderedBuffer, renderedBuffer.length);
-            const url = URL.createObjectURL(wavBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `chordloom_${STATE.genre}_${STATE.keyRoot}.wav`;
-            a.click();
+                }, duration);
+                const blob = bufferToWave(renderedBuffer, renderedBuffer.length);
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `chordloom_${STATE.genre}_${STATE.keyRoot}_grand-piano.wav`;
+                link.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                document.getElementById('status-text').textContent = 'GRAND PIANO WAV EXPORTED';
+            } catch (error) {
+                console.error('WAV export failed', error);
+                document.getElementById('status-text').textContent = 'WAV EXPORT FAILED — TRY AGAIN';
+            } finally {
+                button.disabled = false;
+                button.textContent = '.WAV';
+            }
         }
 
 
