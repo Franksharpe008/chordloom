@@ -1,0 +1,128 @@
+[
+  {
+    "file": "samples/bass/b1-1.wav",
+    "source": "https://raw.githubusercontent.com/sfzinstruments/karoryfer.black-and-blue-basses/main/Samples/darkblack/reg/darkblack_b1_mf_rr1.wav",
+    "license": "CC0-1.0",
+    "processing": "Mono 16-bit, 2.8 second crop, peak normalized, 40 ms end fade; two alternating takes.",
+    "sha256": "24a5dda041250bf8b37356653f69f0844fabaf49ab5e3946199f889950c500a2"
+  },
+  {
+    "file": "samples/bass/b1-2.wav",
+    "source": "https://raw.githubusercontent.com/sfzinstruments/karoryfer.black-and-blue-basses/main/Samples/darkblack/reg/darkblack_b1_mf_rr2.wav",
+    "license": "CC0-1.0",
+    "processing": "Mono 16-bit, 2.8 second crop, peak normalized, 40 ms end fade; two alternating takes.",
+    "sha256": "62d35aae21a5707d9ec97fcb68434708855d94cd57f262224a42bf3a185db676"
+  },
+  {
+    "file": "samples/bass/e2-1.wav",
+    "source": "https://raw.githubusercontent.com/sfzinstruments/karoryfer.black-and-blue-basses/main/Samples/darkblack/reg/darkblack_e2_mf_rr1.wav",
+    "license": "CC0-1.0",
+    "processing": "Mono 16-bit, 2.8 second crop, peak normalized, 40 ms end fade; two alternating takes.",
+    "sha256": "58e1e01356d946953478814d452f49caff134d196fb55b8332d4d34c4661d6dc"
+  },
+  {
+    "file": "samples/bass/e2-2.wav",
+    "source": "https://raw.githubusercontent.com/sfzinstruments/karoryfer.black-and-blue-basses/main/Samples/darkblack/reg/darkblack_e2_mf_rr2.wav",
+    "license": "CC0-1.0",
+    "processing": "Mono 16-bit, 2.8 second crop, peak normalized, 40 ms end fade; two alternating takes.",
+    "sha256": "0c5346f1f67e80ad98f0003e3831cb660f0d0f0c7d5a46a177435d6fe27a95a2"
+  },
+  {
+    "file": "samples/bass/a2-1.wav",
+    "source": "https://raw.githubusercontent.com/sfzinstruments/karoryfer.black-and-blue-basses/main/Samples/darkblack/reg/darkblack_a2_mf_rr1.wav",
+    "license": "CC0-1.0",
+    "processing": "Mono 16-bit, 2.8 second crop, peak normalized, 40 ms end fade; two alternating takes.",
+    "sha256": "97cb2ba11622c6e391ed12933b760ce1f7734c77a09c6dadfc919d679a438752"
+  },
+  {
+    "file": "samples/bass/a2-2.wav",
+    "source": "https://raw.githubusercontent.com/sfzinstruments/karoryfer.black-and-blue-basses/main/Samples/darkblack/reg/darkblack_a2_mf_rr2.wav",
+    "license": "CC0-1.0",
+    "processing": "Mono 16-bit, 2.8 second crop, peak normalized, 40 ms end fade; two alternating takes.",
+    "sha256": "710df3c15371bdd040b5a0eb7bdf2732b64b0cf76c07b74ae290bf86c26a1065"
+  },
+  {
+    "file": "samples/bass/d3-1.wav",
+    "source": "https://raw.githubusercontent.com/sfzinstruments/karoryfer.black-and-blue-basses/main/Samples/darkblack/reg/darkblack_d3_mf_rr1.wav",
+    "license": "CC0-1.0",
+    "processing": "Mono 16-bit, 2.8 second crop, peak normalized, 40 ms end fade; two alternating takes.",
+    "sha256": "21adf55e67f25bad95a2df61c811e28e53042cda41b54f1970ee9fb6fbf9e3f4"
+  },
+  {
+    "file": "samples/bass/d3-2.wav",
+    "source": "https://raw.githubusercontent.com/sfzinstruments/karoryfer.black-and-blue-basses/main/Samples/darkblack/reg/darkblack_d3_mf_rr2.wav",
+    "license": "CC0-1.0",
+    "processing": "Mono 16-bit, 2.8 second crop, peak normalized, 40 ms end fade; two alternating takes.",
+    "sha256": "95899cfb48fd015bbee10e74217f9a3c26eabe145d2b15d0d21e9d2f0a2d7ace"
+  },
+  {
+    "file": "samples/bass/g3-1.wav",
+    "source": "https://raw.githubusercontent.com/sfzinstruments/karoryfer.black-and-blue-basses/main/Samples/darkblack/reg/darkblack_g3_mf_rr1.wav",
+    "license": "CC0-1.0",
+    "processing": "Mono 16-bit, 2.8 second crop, peak normalized, 40 ms end fade; two alternating takes.",
+    "sha256": "362e4a7e3c0687bdd0cd31ea9a4e39db4c8fe4cbe9294cad89737d01bcce1916"
+  },
+  {
+    "file": "samples/bass/g3-2.wav",
+    "source": "https://raw.githubusercontent.com/sfzinstruments/karoryfer.black-and-blue-basses/main/Samples/darkblack/reg/darkblack_g3_mf_rr2.wav",
+    "license": "CC0-1.0",
+    "processing": "Mono 16-bit, 2.8 second crop, peak normalized, 40 ms end fade; two alternating takes.",
+    "sha256": "04a4e9de212d7f9c1a4a3ca862f175681599e385c03073712fbf4466e5f4d109"
+  },
+  {
+    "file": "samples/mallets/G2.wav",
+    "source": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Marimba/Marimba_hit_Outrigger_G2_med_01.wav",
+    "license": "CC0-1.0",
+    "processing": "Mono 16-bit, normalized scientific pitch MIDI 55 (195.997718 Hz), 70 Hz rumble cut, up to 3 seconds, 40 ms end fade. Source measured 195.940018 Hz.",
+    "sha256": "7af4c4a93b92b86d8b079e08e15fc1c8b604cb263c2a8519f9d4a3f414e8acfb"
+  },
+  {
+    "file": "samples/mallets/F3.wav",
+    "source": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Marimba/Marimba_hit_Outrigger_F3_med_01.wav",
+    "license": "CC0-1.0",
+    "processing": "Mono 16-bit, normalized scientific pitch MIDI 65 (349.228231 Hz), 70 Hz rumble cut, up to 3 seconds, 40 ms end fade. Source measured 349.154872 Hz.",
+    "sha256": "357954e09682247bb67702bf4d5a71f86e75fdfe2ba0ab81e9b138e7d982865e"
+  },
+  {
+    "file": "samples/mallets/C4.wav",
+    "source": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Marimba/Marimba_hit_Outrigger_C4_med_01.wav",
+    "license": "CC0-1.0",
+    "processing": "Mono 16-bit, normalized scientific pitch MIDI 72 (523.251131 Hz), 70 Hz rumble cut, up to 3 seconds, 40 ms end fade. Source measured 524.610819 Hz.",
+    "sha256": "8e14cba4b3e5d664607910a1f71435d6013fd73222e944e6d6dc729664234cf3"
+  },
+  {
+    "file": "samples/mallets/B4.wav",
+    "source": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Marimba/Marimba_hit_Outrigger_B4_med_01.wav",
+    "license": "CC0-1.0",
+    "processing": "Mono 16-bit, normalized scientific pitch MIDI 83 (987.766603 Hz), 70 Hz rumble cut, up to 3 seconds, 40 ms end fade. Source measured 987.863856 Hz.",
+    "sha256": "5b859f5cfe306d1a65e2516f102254e2ccab1176a73a3c3aa88608a3ba2168f7"
+  },
+  {
+    "file": "samples/mallets/F5.wav",
+    "source": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Marimba/Marimba_hit_Outrigger_F5_med_01.wav",
+    "license": "CC0-1.0",
+    "processing": "Mono 16-bit, normalized scientific pitch MIDI 89 (1396.912926 Hz), 70 Hz rumble cut, up to 3 seconds, 40 ms end fade. Source measured 1395.120397 Hz.",
+    "sha256": "25a1188ce6f2ec76e5872bd53191d45d1f25861aff55a4b1a0a74c692f617796"
+  },
+  {
+    "file": "samples/mallets/C6.wav",
+    "source": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Marimba/Marimba_hit_Outrigger_C6_med_01.wav",
+    "license": "CC0-1.0",
+    "processing": "Mono 16-bit, normalized scientific pitch MIDI 96 (2093.004522 Hz), 70 Hz rumble cut, up to 3 seconds, 40 ms end fade. Source measured 2093.547792 Hz.",
+    "sha256": "83ad8faed3ac3932ab69e6342303fcd6ec5b6983ccd9747600b4fa9b65692a01"
+  },
+  {
+    "file": "samples/808/punch-C2.wav",
+    "source": "https://raw.githubusercontent.com/tidalcycles/sounds-tr808-fischer/main/bd8/BD0075.WAV",
+    "license": "CC0-1.0",
+    "processing": "Recorded TR-808 transient plus periodically extended sampled body tuned to C2 65.406391 Hz. Original Chordloom saturation/filter processing; not a proprietary producer sample.",
+    "sha256": "772eb659c46840ef8761ca357626936e48b14013695fbd5fb8c0ffd286725ddd"
+  },
+  {
+    "file": "samples/808/long-C2.wav",
+    "source": "https://raw.githubusercontent.com/tidalcycles/sounds-tr808-fischer/main/bd8/BD0075.WAV",
+    "license": "CC0-1.0",
+    "processing": "Recorded TR-808 transient plus periodically extended sampled body tuned to C2 65.406391 Hz. Original Chordloom saturation/filter processing; not a proprietary producer sample.",
+    "sha256": "beeff3577d82f09a4b7580a470e3759214f0c9c86843b2df94fd1867970d7951"
+  }
+]

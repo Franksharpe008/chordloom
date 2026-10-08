@@ -1,3 +1,6 @@
+const isLowBass = (sound) =>
+  ["808", "sub", "punch808", "long808", "log"].includes(sound);
+const isMonoBass = (sound) => isLowBass(sound) || sound === "finger";
 export const NOTE_NAMES = [
   "C",
   "C#",
@@ -115,13 +118,23 @@ export const SOUNDS = {
     electric: "Electric keys",
     pad: "Velvet pad",
     bell: "Prism bells",
+    marimba: "Recorded marimba",
   },
-  bass: { piano: "Piano bass", sub: "Round sub", 808: "Warm 808" },
+  bass: {
+    piano: "Piano bass",
+    sub: "Round sub",
+    808: "Warm 808 · synth",
+    punch808: "Atlanta punch 808",
+    long808: "Long slide 808",
+    finger: "Finger bass · recorded",
+    log: "Log drum · FM",
+  },
   melody: {
     piano: "Grand piano",
     electric: "Electric keys",
     pad: "Velvet pad",
     bell: "Prism bells",
+    marimba: "Recorded marimba",
   },
 };
 export const GROOVES = {
@@ -558,7 +571,7 @@ export function performPart(chords, settings, seed, layer) {
       positions.forEach((beat, i) => {
         let midi;
         if (layer === "bass") {
-          const octave = p.sound === "808" || p.sound === "sub" ? 24 : 36;
+          const octave = isLowBass(p.sound) ? 24 : 36;
           const degree =
             p.groove === "soul" && i % 3 === 1
               ? 7
@@ -659,7 +672,7 @@ export function exportEvents(project, scope = "mix") {
       : scope === "stems" || e.layer === scope,
   );
   const sound = partSettings(project.settings, "bass").sound;
-  if (sound === "808" || sound === "sub") {
+  if (isMonoBass(sound)) {
     const bass = events
       .filter((e) => e.layer === "bass")
       .sort((a, b) => a.beat - b.beat || a.midi - b.midi)

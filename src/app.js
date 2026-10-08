@@ -21,9 +21,13 @@ import {
 import { readLibrary, saveProject, importProject } from "./project-store.js";
 import { createRack } from "./audio-engine.js";
 import { pcmWave, zipFiles } from "./file-formats.js";
+import { SAMPLE_BANKS, applyStylePalette } from "./sound-palette.js";
 import { sessionName } from "./session-names.js";
 const $ = (id) => document.getElementById(id);
-let project = { ...generate(DEFAULT_SETTINGS, seed()), title: "" };
+let project = {
+  ...generate(applyStylePalette(DEFAULT_SETTINGS), seed()),
+  title: "",
+};
 let dirty = true,
   ready = false,
   loading = false,
@@ -36,16 +40,6 @@ let dirty = true,
 const undoStack = [],
   buffers = {},
   keyNodes = new Map();
-const SAMPLE_URLS = Object.fromEntries(
-  [2, 3, 4, 5]
-    .flatMap((o) =>
-      ["C", "D#", "F#", "A"].map((n) => [
-        n + o,
-        "samples/piano/" + n.replace("#", "s") + o + ".mp3",
-      ]),
-    )
-    .concat([["C6", "samples/piano/C6.mp3"]]),
-);
 let recentNames = [];
 try {
   const names = JSON.parse(localStorage.getItem("chordloom.names.v1") || "[]");
@@ -310,7 +304,7 @@ function updateLibrary() {
   }
 }
 const withKeeps = preserveKeptParts;
-function editChord(index) {
+async function editChord(index) {
   selectedBar = index;
   const chord = project.chords[index];
   document
@@ -343,6 +337,7 @@ function editChord(index) {
     $("alternatives").append(b);
   });
   if (ready && !playing) {
+    await Tone.start();
     rack.sync(project.settings);
     const t = Tone.now();
     chord.notes.forEach((midi) =>
@@ -516,24 +511,31 @@ async function activate() {
       throw Error(
         "The audio library did not load. Check your connection and reload.",
       );
-    await Tone.start();
-    if (Tone.context.state !== "running") await Tone.context.resume();
-    const result = [],
-      samples = Object.entries(SAMPLE_URLS);
-    for (let i = 0; i < samples.length; i += 3)
+    const samples = Object.entries(SAMPLE_BANKS).flatMap(([bank, urls]) =>
+      Object.entries(urls).map(([name, url]) => ({ bank, name, url })),
+    );
+    let completed = 0;
+    const result = [];
+    for (let i = 0; i < samples.length; i += 4)
       result.push(
         ...(await Promise.allSettled(
-          samples.slice(i, i + 3).map(async ([name, url]) => {
-            if (!buffers[name])
-              buffers[name] = (await Tone.ToneAudioBuffer.fromUrl(url)).get();
+          samples.slice(i, i + 4).map(async ({ bank, name, url }) => {
+            buffers[bank] ??= {};
+            if (!buffers[bank][name])
+              buffers[bank][name] = (
+                await Tone.ToneAudioBuffer.fromUrl(url)
+              ).get();
+            completed++;
             $("sound-state").textContent =
-              "Piano " + Object.keys(buffers).length + "/17";
+              "Loading sounds " +
+              Math.round((completed / samples.length) * 100) +
+              "%";
           }),
         )),
       );
     if (result.some((r) => r.status === "rejected"))
       throw Error(
-        "Some recordings could not load. Retry; downloaded notes are kept.",
+        "Some sounds could not load. Retry keeps recordings already loaded.",
       );
     // Keep the live clock separate from temporary offline rendering contexts.
     transport = Tone.Transport;
@@ -546,10 +548,11 @@ async function activate() {
     $("export-wav").disabled = false;
     keyNodes.forEach((n) => (n.disabled = false));
     rack.sync(project.settings);
-    status("Piano, electric keys, pads, bells, sub and 808 are ready.");
+    status("Sounds are ready. Press Play or a key to hear your session.");
   } catch (e) {
+    $("activate").hidden = false;
     $("activate").disabled = false;
-    $("activate").textContent = "Retry instrument load";
+    $("activate").textContent = "Retry sounds";
     $("sound-state").textContent = "Load interrupted";
     status(e.message, true);
   } finally {
@@ -664,8 +667,9 @@ function buildKeyboard() {
       b.style.left = left + "%";
       b.style.width = (100 / 21) * 0.6 + "%";
     } else if (midi % 12 === 0) b.textContent = noteName(midi);
-    const hit = () => {
+    const hit = async () => {
       if (ready) {
+        await Tone.start();
         rack.sync(project.settings);
         rack.trigger(
           { midi, layer: "keys", duration: 0.6, velocity: 0.7 },
@@ -858,25 +862,72 @@ $("add-note").onclick = () => {
     "Added a chord-root note. This part is kept; Undo can remove the addition.",
   );
 };
-function download(blob, extension, title = project.title) {
-  const reader = new FileReader();
-  reader.onload = () => {
+const readyExports = [];
+function filename(title, extension) {
+  return (
+    (title
+      .replace(/[^a-z0-9 _-]/gi, "")
+      .trim()
+      .replace(/ +/g, "-") || "chordloom-session") +
+    "." +
+    extension
+  );
+}
+async function download(blob, extension, title = project.title, save = true) {
+  const data = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(Error("Export could not be prepared."));
+    reader.readAsDataURL(blob);
+  });
+  const name = filename(title, extension);
+  if (["wav", "mid"].includes(extension)) {
+    const file = new File([blob], name, {
+      type: blob.type,
+      lastModified: Date.now(),
+    });
+    const old = readyExports.findIndex((e) => e.file.name === name);
+    if (old >= 0) readyExports.splice(old, 1);
+    readyExports.push({ file, data });
+    if (readyExports.length > 8) readyExports.shift();
+    renderExports();
+  }
+  if (save) {
     const a = $("download-ready");
-    a.href = reader.result;
-    a.download =
-      (title
-        .replace(/[^a-z0-9 _-]/gi, "")
-        .trim()
-        .replace(/ +/g, "-") || "chordloom-session") +
-      "." +
-      extension;
-    a.textContent = "Download " + a.download;
+    a.href = data;
+    a.download = name;
+    a.textContent = "Download " + name;
     a.hidden = false;
     a.click();
-  };
-  reader.onerror = () =>
-    status("The export could not be prepared. Try again.", true);
-  reader.readAsDataURL(blob);
+  }
+}
+function renderExports() {
+  $("export-tray").hidden = !readyExports.length;
+  $("ready-files").replaceChildren();
+  for (const { file, data } of readyExports) {
+    const a = document.createElement("a");
+    a.href = data;
+    a.download = file.name;
+    a.draggable = true;
+    a.className = "export-file";
+    a.textContent = "⠿ " + file.name;
+    a.title = "Drag this rendered file, or click to download";
+    a.addEventListener("dragstart", (event) => {
+      const transfer = event.dataTransfer;
+      if (!transfer) return;
+      transfer.effectAllowed = "copy";
+      try {
+        transfer.items.add(file);
+      } catch {}
+      transfer.setData("DownloadURL", file.type + ":" + file.name + ":" + data);
+      transfer.setData("text/uri-list", data);
+      $("drag-status").textContent =
+        "File prepared: " +
+        file.name +
+        ". If your DAW rejects a browser drop, click this file to save it and drag it from Downloads.";
+    });
+    $("ready-files").append(a);
+  }
 }
 function midiBytes(snapshot, scope) {
   if (typeof Midi !== "function")
@@ -900,6 +951,11 @@ function midiBytes(snapshot, scope) {
       bell: 10,
       sub: 38,
       808: 38,
+      punch808: 38,
+      long808: 38,
+      finger: 33,
+      log: 38,
+      marimba: 12,
     }[p.sound];
     notes.forEach((e) =>
       track.addNote({
@@ -913,8 +969,8 @@ function midiBytes(snapshot, scope) {
   return midi.toArray();
 }
 const exportReadme =
-  "Chordloom stems start at beat zero with the same BPM and length. Import WAVs on aligned DAW tracks. Session.json reopens exact editable notes, part sounds, rhythms and levels in Chordloom. MIDI carries notes, velocity and tempo; a DAW supplies its own instruments. The exact synthesized 808 sound and slides are preserved in WAV and Session settings, not portable MIDI program changes. Piano: Salamander Grand Piano, Alexander Holm, CC BY 3.0; https://creativecommons.org/licenses/by/3.0/ . Seventeen unmodified samples: https://github.com/Tonejs/audio/tree/master/salamander . Synthetic electric/pad/bell/sub/808 sounds are generated in this app.\n";
-function exportMidi() {
+  "Chordloom stems start at beat zero with the same BPM and length. Import WAVs on aligned DAW tracks. Session.json reopens exact editable notes, part sounds, rhythms and levels in Chordloom. MIDI carries notes, velocity and tempo; a DAW supplies its own instruments. The exact 808 sound and slides are preserved in WAV and Session settings, not portable MIDI program changes. Piano: Salamander Grand Piano, Alexander Holm, CC BY 3.0; https://creativecommons.org/licenses/by/3.0/ . Seventeen unmodified samples: https://github.com/Tonejs/audio/tree/master/salamander . Recorded bass: Karoryfer Black And Blue Basses, D. Smolken. Marimba: Versilian Community Sample Library. Recorded TR-808: Michael Fischer / TidalCycles; Atlanta punch and long slide processing by Chordloom (not proprietary producer samples). These three recording sets are CC0; see samples/ATTRIBUTION.md and samples/PALETTE-MANIFEST.json. Electric/pad/bell/sub/log sounds are synthesized in this app.\n";
+async function exportMidi() {
   try {
     const snapshot = clone(project),
       scope = $("export-scope").value;
@@ -932,9 +988,16 @@ function exportMidi() {
         2,
       );
       files["README.txt"] = exportReadme;
-      download(zipFiles(files), "zip", snapshot.title + "-MIDI-stems");
+      for (const layer of PARTS)
+        await download(
+          new Blob([files[layer + ".mid"]], { type: "audio/midi" }),
+          "mid",
+          snapshot.title + "-" + layer,
+          false,
+        );
+      await download(zipFiles(files), "zip", snapshot.title + "-MIDI-stems");
     } else
-      download(
+      await download(
         new Blob([midiBytes(snapshot, scope)], { type: "audio/midi" }),
         "mid",
         snapshot.title + (scope === "mix" ? "" : "-" + scope),
@@ -984,6 +1047,12 @@ async function exportWav() {
       for (const layer of PARTS) {
         $("export-wav").textContent = "Rendering " + layer + "…";
         files[layer + ".wav"] = await renderAudio(snapshot, layer, tail);
+        await download(
+          new Blob([files[layer + ".wav"]], { type: "audio/wav" }),
+          "wav",
+          snapshot.title + "-" + layer,
+          false,
+        );
       }
       files["Session.json"] = JSON.stringify(
         { version: 1, project: snapshot },
@@ -991,13 +1060,13 @@ async function exportWav() {
         2,
       );
       files["README.txt"] = exportReadme;
-      download(zipFiles(files), "zip", snapshot.title + "-WAV-stems");
+      await download(zipFiles(files), "zip", snapshot.title + "-WAV-stems");
       status(
         "Three aligned WAV stems and an editable Session backup are ready.",
       );
     } else {
       const bytes = await renderAudio(snapshot, scope, tail);
-      download(
+      await download(
         new Blob([bytes], { type: "audio/wav" }),
         "wav",
         snapshot.title + (scope === "mix" ? "" : "-" + scope),
@@ -1046,7 +1115,10 @@ $("generate").onclick = () => {
 for (const name of ["style", "key", "bars", "complexity"])
   $(name).onchange = () => {
     try {
-      const s = settingsFromControls();
+      const s =
+        name === "style"
+          ? applyStylePalette(settingsFromControls())
+          : settingsFromControls();
       pushUndo();
       const old = clone(project),
         keep =
@@ -1060,7 +1132,9 @@ for (const name of ["style", "key", "bars", "complexity"])
       changed();
       render();
       status(
-        "Harmony updated. Kept parts follow chord changes; the playhead continues.",
+        name === "style"
+          ? "Style palette, bass pocket and melody updated together. Playback continues; kept notes follow the new harmony."
+          : "Harmony updated. Kept parts follow chord changes; the playhead continues.",
       );
     } catch (e) {
       status(e.message, true);
@@ -1148,7 +1222,7 @@ $("new-session").onclick = () => {
   pushUndo();
   stop();
   project = {
-    ...generate(DEFAULT_SETTINGS, seed()),
+    ...generate(applyStylePalette(DEFAULT_SETTINGS), seed()),
     title: freshName(DEFAULT_SETTINGS),
   };
   dirty = true;
@@ -1228,3 +1302,5 @@ loadControls();
 buildKeyboard();
 render();
 requestAnimationFrame(animate);
+
+activate();

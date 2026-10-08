@@ -1,4 +1,4 @@
-import { PARTS, partSettings, noteName } from "./music-engine.js";
+import { PARTS, SOUNDS, partSettings, noteName } from "./music-engine.js";
 
 // One factory for live playback and offline stems: no approximate export instrument.
 export function createRack(Tone, buffers) {
@@ -12,20 +12,60 @@ export function createRack(Tone, buffers) {
   for (const layer of PARTS) {
     voices[layer] = {};
     gains[layer] = {};
-    const sounds =
-      layer === "bass"
-        ? ["piano", "sub", "808"]
-        : ["piano", "electric", "pad", "bell"];
+    const sounds = Object.keys(SOUNDS[layer]);
     for (const sound of sounds) {
       const gain = own(new Tone.Gain(0).connect(master));
       gains[layer][sound] = gain;
       let instrument;
       if (sound === "piano")
         instrument = new Tone.Sampler({
-          urls: buffers,
+          urls: buffers.piano,
           attack: 0,
           release: 1.2,
           volume: -12,
+        });
+      else if (sound === "finger") {
+        const takes = [buffers.finger, buffers.finger2].map((urls) =>
+          own(
+            new Tone.Sampler({
+              urls,
+              attack: 0.003,
+              release: 0.12,
+              volume: -20,
+            }).connect(gain),
+          ),
+        );
+        let take = 0;
+        instrument = {
+          triggerAttackRelease(...args) {
+            takes[take++ % 2].triggerAttackRelease(...args);
+          },
+          releaseAll() {
+            takes.forEach((v) => v.releaseAll());
+          },
+          dispose() {},
+        };
+      } else if (sound === "marimba")
+        instrument = new Tone.Sampler({
+          urls: buffers.marimba,
+          attack: 0.002,
+          release: 0.45,
+          volume: -17,
+        });
+      else if (sound === "punch808" || sound === "long808") {
+        instrument = sampled808(Tone, buffers[sound].C2, gain, sound);
+      } else if (sound === "log")
+        instrument = new Tone.FMSynth({
+          harmonicity: 1,
+          modulationIndex: 2.5,
+          envelope: { attack: 0.003, decay: 0.2, sustain: 0.02, release: 0.08 },
+          modulationEnvelope: {
+            attack: 0,
+            decay: 0.08,
+            sustain: 0,
+            release: 0.03,
+          },
+          volume: -16,
         });
       else if (sound === "808" || sound === "sub") {
         instrument = new Tone.Synth({
@@ -79,10 +119,11 @@ export function createRack(Tone, buffers) {
             sustain: 0,
             release: 0.2,
           },
-          volume: -20,
+          volume: -14,
         });
       own(instrument);
-      if (sound !== "808") instrument.connect(gain);
+      if (!["808", "finger", "punch808", "long808"].includes(sound))
+        instrument.connect(gain);
       voices[layer][sound] = instrument;
     }
   }
@@ -105,7 +146,19 @@ export function createRack(Tone, buffers) {
     const p = partSettings(settings, e.layer),
       voice = voices[e.layer][p.sound];
     const duration = Math.max(0.008, e.duration * secondsPerBeat);
-    if (e.layer === "bass" && (p.sound === "808" || p.sound === "sub")) {
+    if (e.layer === "bass" && ["punch808", "long808"].includes(p.sound)) {
+      const previous = lastBass[p.sound];
+      const slide =
+        previous &&
+        p.groove === "drill" &&
+        time >= previous.time &&
+        time - previous.end < 0.22 &&
+        Math.abs(e.midi - previous.midi) <= 12
+          ? previous.midi
+          : undefined;
+      voice.play(e.midi, duration, time, e.velocity, p.glide, slide);
+      lastBass[p.sound] = { midi: e.midi, time, end: time + duration };
+    } else if (e.layer === "bass" && (p.sound === "808" || p.sound === "sub")) {
       // Monophonic bass is cut at the next attack; glide only connects close phrases.
       const previous = lastBass[p.sound];
       voice.triggerAttackRelease(noteName(e.midi), duration, time, e.velocity);
@@ -137,7 +190,7 @@ export function createRack(Tone, buffers) {
     for (const lane of Object.values(voices))
       for (const v of Object.values(lane)) {
         if (v.releaseAll) v.releaseAll();
-        else v.triggerRelease();
+        else if (v.triggerRelease) v.triggerRelease();
       }
     for (const key of Object.keys(lastBass)) delete lastBass[key];
   }
@@ -148,6 +201,47 @@ export function createRack(Tone, buffers) {
     dispose() {
       release();
       nodes.reverse().forEach((n) => n.dispose());
+    },
+  };
+}
+
+// Rate automation changes pitch on the recorded body; note-off gates it cleanly.
+function sampled808(Tone, buffer, output, sound) {
+  const sources = new Set();
+  let previous;
+  return {
+    play(midi, duration, time, velocity, glide, from) {
+      if (previous && time < previous.end) previous.source.stop(time);
+      const rate = 2 ** ((midi - 36) / 12);
+      const source = new Tone.ToneBufferSource({
+        url: buffer,
+        fadeIn: 0.004,
+        fadeOut: 0.04,
+        curve: "linear",
+        playbackRate: rate,
+        onended: () => {
+          sources.delete(source);
+        },
+      }).connect(output);
+      sources.add(source);
+      if (from !== undefined && glide > 0) {
+        source.playbackRate.setValueAtTime(2 ** ((from - 36) / 12), time);
+        source.playbackRate.exponentialRampToValueAtTime(
+          rate,
+          time + Math.min(0.18, glide * 0.22, duration * 0.4),
+        );
+      }
+      source.start(time, 0, duration, velocity * 0.11);
+      previous = { source, end: time + duration };
+    },
+    releaseAll() {
+      const now = Tone.now();
+      for (const s of sources) s.stop(now);
+      previous = undefined;
+    },
+    dispose() {
+      for (const s of sources) s.dispose();
+      sources.clear();
     },
   };
 }

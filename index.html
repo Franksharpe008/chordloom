@@ -26,10 +26,10 @@
           ><span class="brand-mark">≋</span>chordloom<span class="dot"
             >.</span
           ></a
-        ><span class="edition">PRODUCER STUDIO <b>03</b></span>
+        ><span class="edition">PRODUCER STUDIO <b>04</b></span>
         <div class="sound-control">
-          <span id="sound-state">Instrument asleep</span
-          ><button id="activate" class="outline">Load grand piano</button>
+          <span id="sound-state">Loading sounds…</span
+          ><button id="activate" class="outline" hidden>Retry sounds</button>
         </div>
       </header>
       <div class="workspace">
@@ -320,13 +320,35 @@
           </section>
           <div class="keyboard-heading">
             <span class="eyebrow">PLAY IT YOURSELF</span
-            ><span class="small">Recorded Yamaha C5 · three octaves</span>
+            ><span class="small">Selected keys sound · three octaves</span>
           </div>
-          <div id="keyboard" class="keyboard" aria-label="Playable piano"></div>
+          <div
+            id="keyboard"
+            class="keyboard"
+            aria-label="Playable keyboard"
+          ></div>
           <div id="status" role="status" aria-live="polite" class="status">
-            Make a variation, shape a chord, save the session. Load the piano
-            when you want to listen.
+            Make a variation, shape a part, save the session. Sounds load
+            automatically.
           </div>
+          <section
+            id="export-tray"
+            class="export-tray"
+            hidden
+            aria-labelledby="export-tray-title"
+          >
+            <div class="section-top">
+              <h2 id="export-tray-title">Take it to your DAW.</h2>
+              <span class="small">RENDERED FILES</span>
+            </div>
+            <div id="ready-files" class="ready-files"></div>
+            <p id="drag-status" class="helper">
+              Grab a file to drag it out, or click to download. Direct DAW drops
+              depend on your browser and DAW; Chrome or Edge offers the best
+              browser drag support. Files stay as rendered, even when you edit
+              the session.
+            </p>
+          </section>
           <a id="download-ready" class="download-ready" hidden></a>
           <footer>
             <span
@@ -337,8 +359,8 @@
                 rel="noreferrer"
                 >Frank D. Sharpe</a
               ></span
-            ><a href="samples/piano/ATTRIBUTION.md" target="_blank"
-              >Piano: Alexander Holm · CC BY 3.0</a
+            ><a href="samples/ATTRIBUTION.md" target="_blank"
+              >Instrument credits &amp; licenses</a
             >
           </footer>
         </main>

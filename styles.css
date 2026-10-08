@@ -986,3 +986,36 @@ footer a {
     height: 205px;
   }
 }
+
+.export-tray {
+  margin-top: 22px;
+  padding: 24px;
+  border: 1px solid var(--border, #444);
+  border-radius: 16px;
+  background: rgba(157, 211, 176, 0.04);
+}
+.ready-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0;
+}
+.export-file {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 13px 16px;
+  border: 1px solid rgba(157, 211, 176, 0.3);
+  border-radius: 8px;
+  color: var(--mint);
+  font-size: 12px;
+  text-decoration: none;
+  cursor: grab;
+  background: rgba(157, 211, 176, 0.05);
+}
+.export-file:hover {
+  background: rgba(157, 211, 176, 0.14);
+}
+.export-file:active {
+  cursor: grabbing;
+}
