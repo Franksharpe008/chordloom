@@ -1,43 +1,42 @@
-# Chordloom · Sampled Grand Piano Loop Studio
+# Chordloom · Piano Producer Studio
 
-Generate, play, and export chord loops with **recorded acoustic grand-piano notes**.
+Turn a piano idea into a layered performance, shape its harmony, and keep the sessions worth returning to.
 
-**[Play Chordloom](https://chordloom-kappa.vercel.app)** · [Selected work](https://github.com/Franksharpe008/frank-sharpe-portfolio) · [LinkedIn](https://www.linkedin.com/in/therelentlessconnoisseur/)
+**[Open the live studio](https://chordloom-kappa.vercel.app)** · [Selected work](https://github.com/Franksharpe008/frank-sharpe-portfolio) · [LinkedIn](https://www.linkedin.com/in/therelentlessconnoisseur/)
 
-## What it does
+## Produce an idea
 
-- Generates randomized chord progressions from genre rules, scales, key roots, and voicing choices.
-- Plays recorded Yamaha C5 grand-piano samples through Tone.js, with pitch interpolation between 17 recordings.
-- Provides a playable keyboard and synchronized timeline, with pause and stop controls.
-- Exports an acoustic-grand-piano MIDI track at the chosen tempo, or renders stereo WAV using the **same recordings, gain, velocity and note duration** as live playback.
+- Seven starting styles: neo-soul, lo-fi jazz, dark trap, cinematic, amapiano keys, UK drill, and island piano.
+- Three harmonic levels: triads, sevenths, and richer extensions with borrowed chords and secondary-dominant turns.
+- Inversions chosen to reduce movement between chords; independent keys, bass and melodic parts follow the harmony.
+- Editable chord colors, locked bars, rhythm choices, human timing/velocity, layer muting, tempo, and 4–32 bars.
+- A synchronized piano roll, playhead, chord highlighting, and playable three-octave keyboard.
+- **Real Yamaha C5 piano recordings**, bundled with the site, used for playback and WAV rendering.
 
-This is a **rules-based music tool**, not a trained AI music model or a full digital audio workstation. Genre presets are starting points for experimentation.
+The arrangements are original rule-based performances inspired by common harmonic practice. This is not a trained AI music model, a song-copying service, or a browser host for desktop VST plugins.
 
-## Try it
+## Keep your work
 
-1. Activate audio; the app waits for the piano recordings to load and offers retry if a file fails.
-2. Select a style, key root, tempo and 4, 16 or 32 bars, then **Generate New**.
-3. Play keys directly, pause the progression, or stop to return to its beginning.
-4. Export `.MID` to edit notes in a DAW, or `.WAV` to use the rendered piano audio.
+Name a session and **Save**. Reopen it from the studio library to restore the exact chords, performed notes, settings and locks. **Save a copy** keeps a separate variation. Undo retains up to 20 working versions during the current visit.
 
-MIDI carries note information and a grand-piano program selection; the instrument used when opening it depends on your DAW. WAV contains the piano recording itself.
+Sessions stay in this browser/device's local storage. They do not sync to an account. Export a **Session JSON** backup before clearing browser data; import the file on another device. Failed writes and unreadable storage never report a false successful save or silently overwrite corrupt data.
 
-## Run locally
+## Take it into a DAW
 
-Serve this directory over HTTP, for example:
+- **MIDI:** separate active keys/bass/melody tracks, grand-piano program, performed timing and velocities, and the chosen tempo. Your DAW supplies the instrument.
+- **Piano WAV:** renders the same active event plan through the recorded grand piano, including human feel and release tail.
+- Exports also expose a download link for browsers that do not save the file automatically.
 
-```bash
-python3 -m http.server 8080
-```
+## Run and check
 
-Open `http://localhost:8080`. The app uses browser Web Audio. Its Tone.js, MIDI and Tailwind libraries load from CDNs; the piano samples are bundled locally with the app.
+Use a static HTTP server, for example `python3 -m http.server 8080`. Open `http://localhost:8080`. No build step is required.
 
-## Audio attribution
+`npm test` checks repeatable harmony across styles/keys/complexities, event bounds, locking, layer preservation, exact save/reopen, portable backup, and corruption/write-failure recovery. `npm run check` checks module syntax.
 
-**Salamander Grand Piano by Alexander Holm**, recorded Yamaha C5, [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). The MP3 files are copied unmodified from the [Tone.js audio repository](https://github.com/Tonejs/audio/tree/master/salamander). Source notice and attribution are in `samples/piano/`. Retain the credit when redistributing samples or rendered audio. No endorsement is implied.
+Audio starts after a user gesture. Tone.js 14.8.49 and MIDI 2.0.28 load from CDNs; this is not a fully offline installation. Sample loading has progress and a retry path.
 
-## Checked October 8, 2026
+## Piano attribution
 
-Browser checks covered sample loading, missing-file recovery, manual keys, generation, pause and stop. A four-bar export at 60 BPM produced a 17.7-second stereo WAV at 48 kHz with nonzero signal and no clipped samples. MIDI parsing confirmed 60 BPM, program 0, and note starts at four-beat bar boundaries. These checks do not establish music quality for every randomly generated progression or every browser/device.
+**Salamander Grand Piano by Alexander Holm**, recorded Yamaha C5, [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Seventeen unmodified MP3 recordings come from the [Tone.js audio repository](https://github.com/Tonejs/audio/tree/master/salamander). Original notice and source details are retained in `samples/piano/`. Keep this attribution when redistributing samples or rendered audio. No endorsement is implied.
 
 AI-assisted implementation directed and reviewed by Frank D. Sharpe.
