@@ -1,36 +1,348 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Chordloom · Piano Producer Studio</title>
-<meta name="description" content="Write layered piano ideas, shape the harmony, save your sessions, and export real grand-piano audio and MIDI.">
-<link rel="stylesheet" href="styles.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js" defer></script>
-<script src="https://unpkg.com/@tonejs/midi@2.0.28/build/Midi.js" defer></script>
-<script type="module" src="src/app.js"></script>
-</head>
-<body>
-<div class="studio">
-<header class="masthead"><a class="brand" href="./" aria-label="Chordloom home"><span class="brand-mark">≋</span>chordloom<span class="dot">.</span></a><span class="edition">PIANO PRODUCER STUDIO <b>02</b></span><div class="sound-control"><span id="sound-state">Instrument asleep</span><button id="activate" class="outline">Load grand piano</button></div></header>
-<div class="workspace">
-<aside class="library"><div class="rail-heading"><span class="eyebrow">YOUR STUDIO</span><span class="device-dot"></span></div><h2>Keep the good ones.</h2><p class="muted">Your saved sessions, right here on this device.</p><button id="new-session" class="outline full">＋ New session</button><div id="library-list" class="library-list"></div><div class="library-bottom"><button id="import" class="text-button">↑ Import session</button><input type="file" id="import-file" accept=".json,application/json" hidden><p>JSON backups travel with you.<br>No account needed.</p></div></aside>
-<main>
-<div class="session-heading"><div><span class="eyebrow">FROM A SPARK TO A SESSION</span><h1>Find your next <em>feeling.</em></h1></div><div class="session-save"><label for="session-title" class="sr-only">Session name</label><input id="session-title" maxlength="100" value="Midnight on the keys"><div><span id="save-state">Unsaved session</span><button id="save">Save</button><button id="save-copy" class="text-button">Save a copy</button></div></div></div>
-<section class="controls" aria-label="Compose settings">
-<label>STYLE<select id="style"><option value="neo_soul">Neo-soul</option><option value="lofi">Lo-fi jazz</option><option value="trap">Dark trap</option><option value="cinematic">Cinematic</option><option value="amapiano">Amapiano keys</option><option value="uk_drill">UK drill</option><option value="hawaiian">Island piano</option></select></label>
-<label>KEY<select id="key"><option value="0">C</option><option value="1">C#</option><option value="2">D</option><option value="3">Eb</option><option value="4">E</option><option value="5">F</option><option value="6">F#</option><option value="7">G</option><option value="8">Ab</option><option value="9">A</option><option value="10">Bb</option><option value="11">B</option></select></label>
-<label>ARRANGEMENT<select id="bars"><option value="4">4 bars</option><option value="8" selected>8 bars · A / B</option><option value="16">16 bars · A / B</option><option value="32">32 bars · A / B</option></select></label>
-<label>HARMONIC COLOR<select id="complexity"><option value="1">Essential · triads</option><option value="2" selected>Colorful · sevenths</option><option value="3">Adventurous · extensions</option></select></label>
-<button id="generate" class="primary">↗ New variation</button>
-</section>
-<div class="performance-controls"><label>TEMPO <input id="bpm" type="number" min="45" max="190" value="92"> <span>BPM</span></label><label>FEEL <select id="rhythm"><option value="auto">Style default</option><option value="pocket">Laid-back pocket</option><option value="arp">Arpeggio</option><option value="flow">Flowing score</option><option value="bounce">Offbeat bounce</option><option value="sustain">Long sustain</option></select></label><label>HUMAN FEEL <input id="humanize" type="range" min="0" max="100" value="45"><output id="humanize-value">45%</output></label><button id="undo" class="text-button" disabled>↶ Undo</button></div>
-<section class="arrangement" aria-labelledby="arrangement-title"><div class="section-top"><div><span class="eyebrow">THE HARMONY</span><h2 id="arrangement-title">A little tension. A way home.</h2></div><span id="key-description" class="small"></span></div><p class="helper">Click a chord to hear it and choose another color. Lock a bar to keep it when you generate a variation.</p><div id="chords" class="chords"></div><div id="chord-editor" class="chord-editor" hidden><span id="editor-heading"></span><div id="alternatives"></div><button id="close-editor" class="text-button">Close</button></div></section>
-<section class="performance" aria-labelledby="performance-title"><div class="section-top"><div><span class="eyebrow">THE PERFORMANCE</span><h2 id="performance-title">Three parts. One idea.</h2></div><div class="layer-switches"><label class="keys-color"><input type="checkbox" data-layer="keys" checked> Keys</label><label class="bass-color"><input type="checkbox" data-layer="bass" checked> Bass</label><label class="melody-color"><input type="checkbox" data-layer="melody" checked> Melody</label></div></div><div class="roll-scroll"><div class="roll"><svg id="piano-roll" viewBox="0 0 1000 180" role="img" aria-label="Piano roll showing keys, bass and melody notes"></svg><div id="playhead" class="playhead"></div></div></div><div class="transport"><div class="transport-buttons"><button id="play" class="primary" aria-label="Play session" disabled>▶ Play</button><button id="stop" class="outline" disabled>■ Stop</button><span id="position">BAR 01 / 08</span></div><div class="export-buttons"><button id="export-midi" class="outline">↓ MIDI</button><button id="export-wav" class="outline" disabled>↓ Piano WAV</button><button id="export-json" class="text-button">↓ Session</button></div></div></section>
-<div class="keyboard-heading"><span class="eyebrow">PLAY IT YOURSELF</span><span class="small">Recorded Yamaha C5 · three octaves</span></div><div id="keyboard" class="keyboard" aria-label="Playable piano"></div>
-<div id="status" role="status" aria-live="polite" class="status">Make a variation, shape a chord, save the session. Load the piano when you want to listen.</div>
-<a id="download-ready" class="download-ready" hidden></a>
-<footer><span>Original harmony &amp; performances · built by <a href="https://github.com/Franksharpe008/chordloom" target="_blank" rel="noreferrer">Frank D. Sharpe</a></span><a href="samples/piano/ATTRIBUTION.md" target="_blank">Piano: Alexander Holm · CC BY 3.0</a></footer>
-</main>
-</div>
-</div>
-</body></html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Chordloom · Piano Producer Studio</title>
+    <meta
+      name="description"
+      content="Mix piano, electric keys, pads, bells and 808 bass. Shape independent parts, edit notes, save sessions and export audio stems and MIDI."
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"
+      defer
+    ></script>
+    <script
+      src="https://unpkg.com/@tonejs/midi@2.0.28/build/Midi.js"
+      defer
+    ></script>
+    <script type="module" src="src/app.js"></script>
+  </head>
+  <body>
+    <div class="studio">
+      <header class="masthead">
+        <a class="brand" href="./" aria-label="Chordloom home"
+          ><span class="brand-mark">≋</span>chordloom<span class="dot"
+            >.</span
+          ></a
+        ><span class="edition">PRODUCER STUDIO <b>03</b></span>
+        <div class="sound-control">
+          <span id="sound-state">Instrument asleep</span
+          ><button id="activate" class="outline">Load grand piano</button>
+        </div>
+      </header>
+      <div class="workspace">
+        <aside class="library">
+          <div class="rail-heading">
+            <span class="eyebrow">YOUR STUDIO</span
+            ><span class="device-dot"></span>
+          </div>
+          <h2>Keep the good ones.</h2>
+          <p class="muted">Your saved sessions, right here on this device.</p>
+          <button id="new-session" class="outline full">＋ New session</button>
+          <div id="library-list" class="library-list"></div>
+          <div class="library-bottom">
+            <button id="import" class="text-button">↑ Import session</button
+            ><input
+              type="file"
+              id="import-file"
+              accept=".json,application/json"
+              hidden
+            />
+            <p>JSON backups travel with you.<br />No account needed.</p>
+          </div>
+        </aside>
+        <main>
+          <div class="session-heading">
+            <div>
+              <span class="eyebrow">FROM A SPARK TO A SESSION</span>
+              <h1>Find your next <em>feeling.</em></h1>
+            </div>
+            <div class="session-save">
+              <label for="session-title" class="sr-only">Session name</label
+              ><input id="session-title" maxlength="100" value="" />
+              <div>
+                <button
+                  id="rename"
+                  class="text-button"
+                  aria-label="Give this session a fresh name"
+                >
+                  ✧ Fresh name</button
+                ><span id="save-state">Unsaved session</span
+                ><button id="save">Save</button
+                ><button id="save-copy" class="text-button">Save a copy</button>
+              </div>
+            </div>
+          </div>
+          <div class="name-mood">
+            <label
+              >NAME MOOD
+              <select id="name-mood">
+                <option value="cosmic">Cosmic</option>
+                <option value="warm">Warm</option>
+                <option value="dark">Dark</option>
+                <option value="bright">Electric</option>
+              </select></label
+            ><span
+              >Fresh names draw on your local time, mood and musical
+              choices.</span
+            >
+          </div>
+          <section class="controls" aria-label="Compose settings">
+            <label
+              >STYLE<select id="style">
+                <option value="neo_soul">Neo-soul</option>
+                <option value="lofi">Lo-fi jazz</option>
+                <option value="trap">Dark trap</option>
+                <option value="cinematic">Cinematic</option>
+                <option value="amapiano">Amapiano keys</option>
+                <option value="uk_drill">UK drill</option>
+                <option value="hawaiian">Island piano</option>
+              </select></label
+            >
+            <label
+              >KEY<select id="key">
+                <option value="0">C</option>
+                <option value="1">C#</option>
+                <option value="2">D</option>
+                <option value="3">Eb</option>
+                <option value="4">E</option>
+                <option value="5">F</option>
+                <option value="6">F#</option>
+                <option value="7">G</option>
+                <option value="8">Ab</option>
+                <option value="9">A</option>
+                <option value="10">Bb</option>
+                <option value="11">B</option>
+              </select></label
+            >
+            <label
+              >ARRANGEMENT<select id="bars">
+                <option value="4">4 bars</option>
+                <option value="8" selected>8 bars · A / B</option>
+                <option value="16">16 bars · A / B</option>
+                <option value="32">32 bars · A / B</option>
+              </select></label
+            >
+            <label
+              >HARMONIC COLOR<select id="complexity">
+                <option value="1">Essential · triads</option>
+                <option value="2" selected>Colorful · sevenths</option>
+                <option value="3">Adventurous · extensions</option>
+              </select></label
+            >
+            <button id="generate" class="primary">↗ New variation</button>
+          </section>
+          <div class="performance-controls">
+            <label
+              >TEMPO
+              <input id="bpm" type="number" min="45" max="190" value="92" />
+              <span>BPM</span></label
+            ><label
+              >FEEL
+              <select id="rhythm">
+                <option value="auto">Style default</option>
+                <option value="pocket">Laid-back pocket</option>
+                <option value="arp">Arpeggio</option>
+                <option value="flow">Flowing score</option>
+                <option value="bounce">Offbeat bounce</option>
+                <option value="sustain">Long sustain</option>
+              </select></label
+            ><label
+              >HUMAN FEEL
+              <input
+                id="humanize"
+                type="range"
+                min="0"
+                max="100"
+                value="45"
+              /><output id="humanize-value">45%</output></label
+            ><button id="undo" class="text-button" disabled>↶ Undo</button>
+          </div>
+          <section class="arrangement" aria-labelledby="arrangement-title">
+            <div class="section-top">
+              <div>
+                <span class="eyebrow">THE HARMONY</span>
+                <h2 id="arrangement-title">A little tension. A way home.</h2>
+              </div>
+              <span id="key-description" class="small"></span>
+            </div>
+            <p class="helper">
+              Click a chord to hear it and choose another color. Lock a bar to
+              keep it when you generate a variation.
+            </p>
+            <div id="chords" class="chords"></div>
+            <div id="chord-editor" class="chord-editor" hidden>
+              <span id="editor-heading"></span>
+              <div id="alternatives"></div>
+              <button id="close-editor" class="text-button">Close</button>
+            </div>
+          </section>
+          <section class="part-lab" aria-labelledby="part-lab-title">
+            <div class="section-top">
+              <div>
+                <span class="eyebrow">PART LAB</span>
+                <h2 id="part-lab-title">Keep the soul. Shape the swagger.</h2>
+              </div>
+              <span class="small">Each part follows your harmony.</span>
+            </div>
+            <div id="part-cards" class="part-cards"></div>
+          </section>
+          <section class="performance" aria-labelledby="performance-title">
+            <div class="section-top">
+              <div>
+                <span class="eyebrow">THE PERFORMANCE</span>
+                <h2 id="performance-title">Three parts. One idea.</h2>
+              </div>
+              <div class="layer-switches">
+                <label class="keys-color"
+                  ><input type="checkbox" data-layer="keys" checked />
+                  Keys</label
+                ><label class="bass-color"
+                  ><input type="checkbox" data-layer="bass" checked />
+                  Bass</label
+                ><label class="melody-color"
+                  ><input type="checkbox" data-layer="melody" checked />
+                  Melody</label
+                >
+              </div>
+            </div>
+            <div class="roll-scroll">
+              <div class="roll">
+                <svg
+                  id="piano-roll"
+                  viewBox="0 0 1000 180"
+                  role="group"
+                  aria-label="Editable piano roll showing keys, bass and melody notes"
+                ></svg>
+                <div id="playhead" class="playhead"></div>
+              </div>
+            </div>
+            <div class="transport">
+              <div class="transport-buttons">
+                <button
+                  id="play"
+                  class="primary"
+                  aria-label="Play session"
+                  disabled
+                >
+                  ▶ Play</button
+                ><button id="stop" class="outline" disabled>■ Stop</button
+                ><span id="position">BAR 01 / 08</span>
+              </div>
+              <div class="export-buttons">
+                <label class="sr-only" for="export-scope">Export parts</label
+                ><select id="export-scope">
+                  <option value="mix">Active mix</option>
+                  <option value="keys">Keys only</option>
+                  <option value="bass">Bass only</option>
+                  <option value="melody">Melody only</option>
+                  <option value="stems">All stems</option></select
+                ><label class="tail-choice"
+                  ><input id="export-tail" type="checkbox" checked />Release
+                  tail</label
+                ><button id="export-midi" class="outline">↓ MIDI</button
+                ><button id="export-wav" class="outline" disabled>↓ WAV</button
+                ><button id="export-json" class="text-button">↓ Session</button>
+              </div>
+            </div>
+            <p class="helper">
+              Part switches keep the playhead moving. Click a note to edit it.
+              Stems start together; turn off Release tail for an exact
+              bar-length WAV.
+            </p>
+          </section>
+          <section
+            id="note-editor"
+            class="note-editor"
+            hidden
+            aria-labelledby="note-heading"
+          >
+            <div class="section-top">
+              <h2 id="note-heading">Edit a part</h2>
+              <button id="close-notes" class="text-button">
+                Close note editor
+              </button>
+            </div>
+            <div class="note-controls">
+              <label
+                >PART<select id="note-layer" aria-label="Note part">
+                  <option value="keys">Keys</option>
+                  <option value="bass">Bass</option>
+                  <option value="melody">Melody</option>
+                </select></label
+              ><label
+                >BAR<select id="note-bar" aria-label="Note bar"></select></label
+              ><label class="note-pick"
+                >NOTE<select
+                  id="note-pick"
+                  aria-label="Selected note"
+                ></select></label
+              ><button id="add-note" class="outline">＋ Add chord tone</button>
+            </div>
+            <div class="note-fields">
+              <label
+                >PITCH<select
+                  id="note-pitch"
+                  aria-label="Note pitch"
+                ></select></label
+              ><label
+                >BEAT IN BAR<input
+                  id="note-beat"
+                  type="number"
+                  min="0"
+                  max="3.9999"
+                  step="0.0625" /></label
+              ><label
+                >LENGTH · BEATS<input
+                  id="note-duration"
+                  type="number"
+                  min="0.0001"
+                  max="4"
+                  step="0.0625" /></label
+              ><label
+                >VELOCITY<input
+                  id="note-velocity"
+                  type="number"
+                  min="0.05"
+                  max="1"
+                  step="0.05" /></label
+              ><button id="apply-note" class="primary">Apply note</button
+              ><button id="delete-note" class="outline">Remove note</button>
+            </div>
+            <p id="note-harmony" class="helper"></p>
+            <p class="helper">
+              Beat 0 is the start of the bar. Edits sound on the next scheduled
+              notes and stay in Session backups. Keep this part to protect edits
+              from variations; Undo restores removed notes.
+            </p>
+          </section>
+          <div class="keyboard-heading">
+            <span class="eyebrow">PLAY IT YOURSELF</span
+            ><span class="small">Recorded Yamaha C5 · three octaves</span>
+          </div>
+          <div id="keyboard" class="keyboard" aria-label="Playable piano"></div>
+          <div id="status" role="status" aria-live="polite" class="status">
+            Make a variation, shape a chord, save the session. Load the piano
+            when you want to listen.
+          </div>
+          <a id="download-ready" class="download-ready" hidden></a>
+          <footer>
+            <span
+              >Original harmony &amp; performances · built by
+              <a
+                href="https://github.com/Franksharpe008/chordloom"
+                target="_blank"
+                rel="noreferrer"
+                >Frank D. Sharpe</a
+              ></span
+            ><a href="samples/piano/ATTRIBUTION.md" target="_blank"
+              >Piano: Alexander Holm · CC BY 3.0</a
+            >
+          </footer>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>
