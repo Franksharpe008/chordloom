@@ -145,14 +145,16 @@ function buildKeyboard() {
   all.forEach(midi=>make(midi));
   all.forEach((midi,index)=>{if([0,2,5,7,9].includes(midi%12))make(midi+1,true,(index+1)/21*100-100/21*.3);});
 }
-let lastDownloadUrl;
-function download(blob,extension) {
-  if(lastDownloadUrl) URL.revokeObjectURL(lastDownloadUrl);
-  lastDownloadUrl=URL.createObjectURL(blob);
-  const a=$('download-ready');a.href=lastDownloadUrl;
-  a.download=`${project.title.replace(/[^a-z0-9 _-]/gi,'').trim().replace(/ +/g,'-')||'chordloom-session'}.${extension}`;
-  a.textContent=`Download ${a.download}`;a.hidden=false;
-  a.click();
+function download(blob,extension,title=project.title) {
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const a=$('download-ready');a.href=reader.result;
+    a.download=`${title.replace(/[^a-z0-9 _-]/gi,'').trim().replace(/ +/g,'-')||'chordloom-session'}.${extension}`;
+    a.textContent=`Download ${a.download}`;a.hidden=false;
+    a.click();
+  };
+  reader.onerror=()=>status('The export could not be prepared for download. Try again.',true);
+  reader.readAsDataURL(blob);
 }
 
 function exportMidi() {
@@ -184,7 +186,7 @@ async function exportWav() {
     const rendered=await Tone.Offline(()=>{
       const instrument=createPiano();events.forEach(e=>instrument.triggerAttackRelease(noteName(e.midi),e.duration*secondsPerBeat,e.beat*secondsPerBeat,e.velocity));
     },s.bars*4*secondsPerBeat+1.7);
-    download(wave(rendered),'wav');status('Piano WAV ready with the same active notes, feel and tempo as playback. Keep the piano attribution with shared audio.');
+    download(wave(rendered),'wav',snapshot.title);status('Piano WAV ready with the same active notes, feel and tempo as playback. Keep the piano attribution with shared audio.');
   } catch(error){status('WAV render failed: '+error.message,true);}
   finally{$('export-wav').disabled=false;$('export-wav').textContent='↓ Piano WAV';}
 }
