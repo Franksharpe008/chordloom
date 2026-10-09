@@ -29,6 +29,7 @@ import { createRack } from "./audio-engine.js?v=6";
 import { pcmWave, zipFiles } from "./file-formats.js?v=6";
 import { SAMPLE_BANKS, applyStylePalette } from "./sound-palette.js?v=6";
 import { sessionName } from "./session-names.js?v=6";
+import { writeExportFolder } from "./export-folder.js?v=6.1";
 const $ = (id) => document.getElementById(id);
 let project = {
   ...generate(applyStylePalette(DEFAULT_SETTINGS), seed()),
@@ -913,15 +914,31 @@ $("add-note").onclick = () => {
   );
 };
 const readyExports = [];
+const desktop = window.chordloomDesktop;
+if (desktop) desktop.onDragStatus(message => { $("drag-status").textContent = message; });
+async function revealExport(id) {
+  try { await desktop.reveal(id); }
+  catch (error) { status("Could not show the saved file: " + error.message, true); }
+}
+let activeBatch = null, lastBatch = null;
+function beginExport(snapshot) {
+  if (activeBatch) throw Error("An export is already rendering. Wait for it to finish.");
+  activeBatch = { id: crypto.randomUUID(), title: snapshot.title, bpm: snapshot.settings.bpm,
+    backup: JSON.stringify({ version: 1, project: snapshot }, null, 2) };
+  lastBatch = activeBatch;
+  readyExports.length = 0;
+  renderExports();
+  for (const id of ["export-wav", "export-midi", "export-json"]) $(id).disabled = true;
+}
+function finishExport() {
+  activeBatch = null;
+  $("export-wav").disabled = !ready;
+  $("export-midi").disabled = false;
+  $("export-json").disabled = false;
+  if (readyExports.length) $("export-tray").scrollIntoView({ block: "end" });
+}
 function filename(title, extension) {
-  return (
-    (title
-      .replace(/[^a-z0-9 _-]/gi, "")
-      .trim()
-      .replace(/ +/g, "-") || "chordloom-session") +
-    "." +
-    extension
-  );
+  return (title.replace(/[^a-z0-9 _-]/gi, "").trim().replace(/ +/g, "-") || "chordloom-session") + "." + extension;
 }
 async function download(blob, extension, title = project.title, save = true) {
   const data = await new Promise((resolve, reject) => {
@@ -931,54 +948,66 @@ async function download(blob, extension, title = project.title, save = true) {
     reader.readAsDataURL(blob);
   });
   const name = filename(title, extension);
+  const batch = activeBatch || { id: crypto.randomUUID(), title: project.title,
+    backup: JSON.stringify({ version: 1, project }, null, 2) };
+  let native = null;
+  if (desktop) native = await desktop.prepare({ batchId: batch.id, title: batch.title,
+    name, bytes: new Uint8Array(await blob.arrayBuffer()), backup: batch.backup });
   if (["wav", "mid"].includes(extension)) {
-    const file = new File([blob], name, {
-      type: blob.type,
-      lastModified: Date.now(),
-    });
-    const old = readyExports.findIndex((e) => e.file.name === name);
-    if (old >= 0) readyExports.splice(old, 1);
-    readyExports.push({ file, data });
-    if (readyExports.length > 8) readyExports.shift();
+    const file = new File([blob], name, { type: blob.type, lastModified: Date.now() });
+    readyExports.push({ file, data, native });
     renderExports();
   }
   if (save) {
     const a = $("download-ready");
-    a.href = data;
-    a.download = name;
-    a.textContent = "Download " + name;
+    a.href = data; a.download = name;
+    a.textContent = desktop ? "Show " + name + " in Finder" : "Download " + name;
     a.hidden = false;
-    a.click();
+    a.onclick = desktop ? event => { event.preventDefault(); revealExport(native.id); } : null;
+    if (!desktop) a.click();
   }
 }
 function renderExports() {
   $("export-tray").hidden = !readyExports.length;
   $("ready-files").replaceChildren();
-  for (const { file, data } of readyExports) {
+  const nativeReady = !!desktop && readyExports.every(e => e.native);
+  $("drag-all").hidden = !nativeReady || readyExports.length < 2;
+  $("save-daw-folder").textContent = desktop ? "Show files in Finder" : "Save files to folder";
+  $("save-daw-folder").hidden = !desktop && typeof window.showDirectoryPicker !== "function";
+  $("drag-status").textContent = desktop
+    ? "Drag a file straight into your DAW. The rendered take is already saved in Music / Chordloom Exports."
+    : "Download a file, then drag it from Finder or your file manager into the DAW. Save files to folder keeps stems together where supported.";
+  $("export-take").textContent = lastBatch ? lastBatch.title + " · " + lastBatch.bpm + " BPM" : "RENDERED TAKE";
+  for (const { file, data, native } of readyExports) {
     const a = document.createElement("a");
-    a.href = data;
-    a.download = file.name;
-    a.draggable = true;
-    a.className = "export-file";
-    a.textContent = "⠿ " + file.name;
-    a.title = "Drag this rendered file, or click to download";
-    a.addEventListener("dragstart", (event) => {
-      const transfer = event.dataTransfer;
-      if (!transfer) return;
-      transfer.effectAllowed = "copy";
-      try {
-        transfer.items.add(file);
-      } catch {}
-      transfer.setData("DownloadURL", file.type + ":" + file.name + ":" + data);
-      transfer.setData("text/uri-list", data);
-      $("drag-status").textContent =
-        "File prepared: " +
-        file.name +
-        ". If your DAW rejects a browser drop, click this file to save it and drag it from Downloads.";
-    });
+    a.href = data; a.download = file.name;
+    a.draggable = !!native; a.className = "export-file" + (native ? " native-file" : "");
+    a.textContent = (native ? "⠿ " : "↓ ") + file.name;
+    a.title = native ? "Drag this real file into your DAW, or click to show it in Finder" : "Download this rendered file";
+    if (native) {
+      a.onclick = event => { event.preventDefault(); revealExport(native.id); };
+      a.ondragstart = event => { event.preventDefault(); desktop.drag([native.id]); };
+    }
     $("ready-files").append(a);
   }
 }
+$("drag-all").ondragstart = event => {
+  event.preventDefault();
+  if (desktop && readyExports.every(e => e.native)) desktop.drag(readyExports.map(e => e.native.id));
+};
+$("save-daw-folder").onclick = async () => {
+  if (!readyExports.length || !lastBatch) return;
+  if (desktop) { await revealExport(readyExports[0].native.id); return; }
+  try {
+    const directory = await window.showDirectoryPicker({ id: "chordloom-exports", mode: "readwrite", startIn: "music" });
+    const result = await writeExportFolder(directory, readyExports, lastBatch.title, lastBatch.backup, exportReadme);
+    $("drag-status").textContent = result.count + " files saved in " + directory.name + " / " + result.name + ". Drag those files into your DAW.";
+  } catch (error) {
+    if (error.name === "AbortError") $("drag-status").textContent = "Folder save cancelled. Your rendered files are still ready to download.";
+    else status("Folder save failed: " + error.message + ". Your download links are still ready.", true);
+  }
+};
+if (desktop) document.querySelector(".edition").textContent = "DESKTOP STUDIO · NATIVE DAW FILES";
 function midiBytes(snapshot, scope) {
   if (typeof Midi !== "function")
     throw Error("The MIDI library did not load. Reload and retry.");
@@ -1021,6 +1050,7 @@ function midiBytes(snapshot, scope) {
 const exportReadme =
   "Chordloom stems start at beat zero with the same BPM and length. Import WAVs on aligned DAW tracks. Session.json reopens exact editable notes, part sounds, rhythms and levels in Chordloom. MIDI carries notes, velocity and tempo; a DAW supplies its own instruments. The exact 808 sound and slides are preserved in WAV and Session settings, not portable MIDI program changes. Piano: Salamander Grand Piano, Alexander Holm, CC BY 3.0; https://creativecommons.org/licenses/by/3.0/ . Seventeen unmodified samples: https://github.com/Tonejs/audio/tree/master/salamander . Recorded bass: Karoryfer Black And Blue Basses, D. Smolken. Marimba: Versilian Community Sample Library. Recorded TR-808: Michael Fischer / TidalCycles; Atlanta punch and long slide processing by Chordloom (not proprietary producer samples). These three recording sets are CC0; see samples/ATTRIBUTION.md and samples/PALETTE-MANIFEST.json. Electric/pad/bell/sub/log sounds are synthesized in this app.\n";
 async function exportMidi() {
+  if (activeBatch) return;
   try {
     const snapshot = clone(project),
       scope = $("export-scope").value;
@@ -1028,6 +1058,7 @@ async function exportMidi() {
       throw Error(
         "The chosen export has no notes. Add a note or choose another part.",
       );
+    beginExport(snapshot);
     if (scope === "stems") {
       const files = Object.fromEntries(
         PARTS.map((l) => [l + ".mid", midiBytes(snapshot, l)]),
@@ -1057,7 +1088,7 @@ async function exportMidi() {
     );
   } catch (e) {
     status(e.message, true);
-  }
+  } finally { finishExport(); }
 }
 async function renderAudio(snapshot, scope, tail) {
   const spb = 60 / snapshot.settings.bpm,
@@ -1078,7 +1109,7 @@ async function renderAudio(snapshot, scope, tail) {
   return pcmWave(rendered);
 }
 async function exportWav() {
-  if (!ready) return;
+  if (!ready || activeBatch) return;
   const snapshot = clone(project),
     scope = $("export-scope").value,
     tail = $("export-tail").checked;
@@ -1089,7 +1120,7 @@ async function exportWav() {
     );
     return;
   }
-  $("export-wav").disabled = true;
+  beginExport(snapshot);
   $("export-wav").textContent = "Rendering…";
   try {
     if (scope === "stems") {
@@ -1132,7 +1163,7 @@ async function exportWav() {
   } catch (e) {
     status("WAV render failed: " + e.message, true);
   } finally {
-    $("export-wav").disabled = false;
+    finishExport();
     $("export-wav").textContent = "↓ WAV";
   }
 }
@@ -1309,8 +1340,9 @@ $("close-editor").onclick = () => {
 };
 $("export-midi").onclick = exportMidi;
 $("export-wav").onclick = exportWav;
-$("export-json").onclick = () => {
-  download(
+$("export-json").onclick = async () => {
+  try {
+  await download(
     new Blob([JSON.stringify({ version: 1, project }, null, 2)], {
       type: "application/json",
     }),
@@ -1319,6 +1351,7 @@ $("export-json").onclick = () => {
   status(
     "Editable Session backup ready with all notes, sounds and part controls.",
   );
+  } catch (error) { status("Session export failed: " + error.message, true); }
 };
 $("import").onclick = () => $("import-file").click();
 $("import-file").onchange = async () => {

@@ -1010,12 +1010,12 @@ footer a {
   color: var(--mint);
   font-size: 12px;
   text-decoration: none;
-  cursor: grab;
+  cursor: pointer;
   background: rgba(157, 211, 176, 0.05);
 }
 .export-file:hover {
   background: rgba(157, 211, 176, 0.14);
 }
-.export-file:active {
-  cursor: grabbing;
-}
+.native-file { cursor: grab; }
+.native-file:active { cursor: grabbing; }
+.export-actions { display: flex; flex-wrap: wrap; gap: 10px; }

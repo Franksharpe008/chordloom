@@ -39,7 +39,16 @@ Sessions stay in this browser/device's local storage. They do not sync to an acc
 - **MIDI:** performed notes, timing, velocities, part levels, instrument hints and tempo. All stems creates a ZIP with three MIDI files, the editable Session JSON and a README. Your DAW supplies its own instruments; MIDI does not reproduce the exact sampled/synthesized instruments or slides.
 - **WAV:** 48 kHz, 16-bit stereo through the same instrument rack used for playback. All stems creates aligned keys/bass/melody WAVs plus an editable Session backup. A short edge fade prevents hard export boundaries.
 - Keep **Release tail** on for natural endings; switch it off for exact bar-length files suitable for aligned DAW loops. All stems share the same start and duration.
-- Rendered WAV/MIDI files appear in a **Take it to your DAW** tray. Drag a file out or click it to save. The tray includes real File objects and Chromium DownloadURL data; native DAW drag acceptance varies by browser/DAW, so download and drag from Downloads remains the portable route. All-stems ZIP also exposes the three separate files in the tray. Files remain as rendered when you edit the session. Exports show a download link when a browser does not save automatically. Rendering uses a snapshot, so later changes do not alter the exported take.
+- Rendered WAV/MIDI files appear in a **Take it to your DAW** tray with the take name and BPM. In the browser, click to download, then drag the saved file from Finder into your DAW. **Save files to folder**, where the browser supports it, saves stems and a Session backup together in a new take folder. Browser data-URL links are not advertised as native file dragging.
+- **Chordloom Studio for macOS** prepares real files in **Music / Chordloom Exports** and uses Electron's native file-drag API. Drag individual files or **Drag all stems**; click **Show files in Finder** for the saved files. Earlier exports are never overwritten or deleted. Each export uses a snapshot and an independent take folder; the tray always represents the latest rendered take.
+
+## Desktop studio
+
+On an Apple Silicon Mac, run `npm ci` and `npm run package` inside `desktop/`. Open `desktop/dist/Chordloom Studio-darwin-arm64/Chordloom Studio.app`. The package bundles the instrument recordings and pinned Tone/MIDI libraries, works without a local server, and makes no cloud requests for audio or session data. It keeps its own local session library; use Session JSON to move a browser keeper into the desktop studio.
+
+The desktop bridge accepts only prepared export tokens, not arbitrary paths or commands. Renderer isolation, sandboxing and a restrictive Content Security Policy stay enabled. Exports are bounded to 64 MiB per audio/MIDI file, 128 MiB per ZIP, and 512 MiB / 120 files per running session; restarting the app resets that session allowance while preserving files. This local build is not a signed/notarized public installer.
+
+October 9 verification: actual desktop WAV and aligned stems render; Logic Pro recognizes the WAV as 48 kHz / 16-bit stereo and imports it as an audio region. Desktop playback advances through the bars. Native drag dispatch succeeds without an error; automated cross-application drop completion remains unverified. Browser MIDI/WAV exports and the separate-take folder writer pass independent checks. Musical acceptance remains a listening decision.
 
 ## Run and check
 

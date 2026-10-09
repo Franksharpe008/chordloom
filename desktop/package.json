@@ -1,0 +1,14 @@
+{
+  "name": "chordloom-studio",
+  "version": "6.1.0",
+  "private": true,
+  "description": "Chordloom with native DAW file dragging",
+  "main": "main.cjs",
+  "scripts": { "package": "node package.cjs" },
+  "devDependencies": {
+    "electron": "44.7.0",
+    "@electron/packager": "20.3.0",
+    "tone": "14.8.49",
+    "@tonejs/midi": "2.0.28"
+  }
+}
