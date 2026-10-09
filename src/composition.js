@@ -1,43 +1,44 @@
-// Phrase-level decisions are seeded once, then developed rather than re-rolled per note.
+// A composition is a repeating musical sentence. Randomness chooses its identity,
+// not a new rhythm, bass function or melodic register on every note.
 export const MOODS = {
   auto: { name: "Style character" },
   warm: {
     name: "Warm & soulful",
     mode: "major",
-    space: 0.85,
-    hold: 0.9,
-    center: 72,
+    space: 0.9,
+    hold: 1,
+    center: 74,
     energy: 0.9,
   },
   dreamy: {
     name: "Dreamy & floating",
     mode: "major",
-    space: 0.6,
+    space: 0.62,
     hold: 1.5,
     center: 77,
-    energy: 0.72,
+    energy: 0.74,
   },
   dark: {
     name: "Dark & brooding",
     mode: "minor",
-    space: 0.72,
-    hold: 0.85,
+    space: 0.78,
+    hold: 0.9,
     center: 68,
-    energy: 0.88,
+    energy: 0.9,
   },
   uplifting: {
     name: "Bright & uplifting",
     mode: "major",
     space: 1,
-    hold: 0.8,
+    hold: 0.85,
     center: 79,
-    energy: 1.08,
+    energy: 1,
   },
   tense: {
     name: "Tense & driving",
     mode: "minor",
-    space: 1.15,
-    hold: 0.6,
+    space: 1.1,
+    hold: 0.65,
     center: 74,
     energy: 1,
   },
@@ -62,166 +63,442 @@ export function moodProfile(settings, style) {
       settings.mood && settings.mood !== "auto" ? MOODS[id].mode : style.mode,
   };
 }
+const pick = (items, rng) => items[Math.floor(rng() * items.length)];
+const round = (n) => Math.round(n * 10000) / 10000;
+const pc = (n) => ((n % 12) + 12) % 12;
 
-// Each route is a harmonic sentence. Two routes provide contrast, not unrelated chord dice.
-export const ROUTES = {
-  major: {
-    warm: [
+// Harmonic rhythm belongs to the genre: trap/drill/score can sit on a chord
+// for two bars; soul has functional movement; lo-fi has cyclical, softer turns.
+const HARMONY = {
+  neo_soul: {
+    major: [
       [2, 7, 0, 9],
       [5, 7, 4, 9],
-      [0, 4, 5, 7],
-      [9, 2, 5, 0],
       [0, 9, 2, 7],
+      [9, 2, 5, 7],
       [5, 4, 2, 7],
+      [0, 4, 5, 7],
     ],
-    dreamy: [
-      [0, 5, 4, 5],
-      [5, 0, 9, 5],
-      [0, 9, 5, 0],
-      [4, 5, 0, 5],
-      [9, 5, 0, 4],
-      [0, 4, 9, 5],
-    ],
-    uplifting: [
-      [0, 7, 9, 5],
+    minor: [
+      [0, 5, 8, 7],
       [5, 7, 0, 0],
-      [0, 2, 5, 7],
-      [9, 5, 0, 7],
-      [0, 5, 2, 7],
-      [5, 0, 7, 9],
+      [0, 8, 5, 7],
+      [8, 3, 5, 7],
     ],
   },
-  minor: {
-    dark: [
+  lofi: {
+    major: [
+      [0, 0, 9, 9],
+      [5, 4, 9, 9],
+      [2, 7, 0, 0],
+      [0, 4, 9, 7],
+      [5, 5, 0, 0],
+      [0, 9, 5, 5],
+    ],
+    minor: [
+      [0, 0, 5, 5],
+      [5, 0, 5, 0],
+      [0, 8, 7, 7],
+      [0, 0, 8, 8],
+    ],
+  },
+  trap: {
+    major: [
+      [0, 0, 9, 9],
+      [9, 9, 5, 7],
+      [0, 0, 5, 5],
+      [0, 7, 9, 5],
+    ],
+    minor: [
+      [0, 0, 8, 8],
+      [0, 0, 5, 7],
+      [0, 0, 3, 3],
       [0, 8, 5, 7],
-      [0, 3, 8, 7],
-      [0, 5, 0, 7],
-      [8, 5, 0, 0],
-      [0, 8, 3, 5],
-      [5, 8, 0, 7],
+      [0, 0, 0, 7],
+      [0, 5, 8, 8],
     ],
-    tense: [
-      [0, 1, 0, 7],
+  },
+  uk_drill: {
+    major: [
+      [9, 9, 5, 5],
+      [0, 0, 9, 7],
+      [0, 5, 9, 9],
+      [9, 5, 0, 7],
+    ],
+    minor: [
+      [0, 0, 1, 1],
+      [0, 0, 8, 7],
       [0, 5, 1, 7],
-      [0, 8, 1, 7],
-      [5, 0, 1, 7],
-      [0, 7, 8, 7],
-      [1, 0, 5, 7],
+      [0, 0, 5, 5],
+      [0, 1, 0, 7],
+      [0, 0, 8, 8],
     ],
-    dreamy: [
-      [0, 8, 3, 8],
-      [5, 8, 0, 3],
-      [0, 3, 5, 8],
-      [8, 3, 0, 5],
-      [0, 5, 3, 8],
-      [3, 8, 5, 0],
+  },
+  cinematic: {
+    major: [
+      [0, 0, 5, 5],
+      [9, 9, 5, 5],
+      [0, 0, 9, 9],
+      [5, 5, 0, 0],
+    ],
+    minor: [
+      [0, 0, 8, 8],
+      [0, 0, 5, 5],
+      [5, 5, 8, 8],
+      [0, 0, 3, 3],
+      [8, 8, 3, 3],
+    ],
+  },
+  amapiano: {
+    major: [
+      [0, 5, 9, 7],
+      [5, 5, 0, 0],
+      [0, 9, 5, 7],
+      [9, 5, 0, 7],
+      [0, 0, 5, 5],
+    ],
+    minor: [
+      [0, 8, 3, 7],
+      [0, 0, 5, 5],
+      [5, 8, 0, 7],
+      [0, 8, 5, 7],
+    ],
+  },
+  hawaiian: {
+    major: [
+      [0, 9, 5, 7],
+      [0, 0, 5, 7],
+      [0, 5, 7, 0],
+      [5, 0, 7, 0],
+      [0, 7, 9, 5],
+    ],
+    minor: [
+      [0, 8, 3, 7],
+      [0, 5, 7, 0],
+      [0, 0, 8, 7],
+      [5, 0, 8, 7],
     ],
   },
 };
 export function harmonicRoutes(settings, style, rng) {
-  const m = moodProfile(settings, style);
-  const character =
-    settings.mood && settings.mood !== "auto"
-      ? settings.mood
-      : CHARACTERS[settings.style];
-  const bank =
-    ROUTES[m.mode][character] ??
-    ROUTES[m.mode][m.mode === "major" ? "warm" : "dark"];
-  const candidates =
-    settings.mood === "auto" || !settings.mood
-      ? [...style.patterns, ...bank]
-      : bank;
-  const choices = candidates.filter(
-    (route, i) =>
-      candidates.findIndex(
-        (other) => JSON.stringify(other) === JSON.stringify(route),
-      ) === i,
-  );
-  const a = Math.floor(rng() * choices.length);
-  let b = Math.floor(rng() * (choices.length - 1));
-  if (b >= a) b++;
-  return [choices[a], choices[b]];
+  const mood = moodProfile(settings, style);
+  let bank = HARMONY[settings.style][mood.mode];
+  // A mood changes harmony, but keeps the style's harmonic rhythm and vocabulary.
+  if (settings.mood === "dreamy") bank = bank.filter((r) => !r.includes(7));
+  if (!bank.length) bank = HARMONY[settings.style][mood.mode];
+  if (settings.mood && settings.mood !== "auto") {
+    const colors = {
+      warm: [
+        [2, 7, 0, 9],
+        [5, 7, 4, 9],
+        [0, 9, 2, 7],
+      ],
+      dreamy: [
+        [0, 9, 5, 0],
+        [5, 5, 0, 9],
+        [0, 4, 9, 5],
+      ],
+      uplifting: [
+        [0, 7, 9, 5],
+        [0, 5, 2, 7],
+        [5, 7, 0, 0],
+      ],
+      dark: [
+        [0, 8, 5, 7],
+        [5, 8, 0, 7],
+        [0, 0, 8, 5],
+      ],
+      tense: [
+        [0, 1, 5, 7],
+        [5, 1, 0, 7],
+        [0, 7, 1, 7],
+      ],
+    };
+    bank = colors[settings.mood];
+    if (["trap", "uk_drill", "cinematic"].includes(settings.style))
+      bank = bank.map((r) => [r[0], r[0], r[2], r[2]]);
+  }
+  const a = [...pick(bank, rng)],
+    b = [...a];
+  // Keep the recognizable first half. An answer alters one harmonic destination,
+  // rather than replacing the entire sentence at the halfway point.
+  const other = pick(bank, rng);
+  b[2] = other[2];
+  b[3] = other[3];
+  return [a, b];
 }
 
+// Priority-ordered attacks, not random sixteenths. Low density keeps the anchor;
+// higher density adds a related response or fill. Each pair is a two-bar phrase.
 const RHYTHMS = {
   pocket: [
-    [0, 1.5, 2.75, 3.5],
-    [0, 0.75, 2, 3.25],
-    [0, 1.75, 2.5, 3.75],
-    [0.5, 1.5, 2.5, 3.5],
+    [
+      [0, 2.5, 1.5, 3.5],
+      [0, 2.5, 3.25, 1.5],
+    ],
+    [
+      [0, 2.75, 1.75, 3.5],
+      [0, 2, 3.25, 1.25],
+    ],
+    [
+      [0, 2, 3.5, 1.5],
+      [0, 2.5, 1, 3.5],
+    ],
   ],
   bounce: [
-    [0.5, 1.5, 2.5, 3.5],
-    [0, 0.75, 1.5, 2.75, 3.5],
-    [0.5, 1.25, 2.5, 3.25],
+    [
+      [0.5, 2.5, 1.5, 3.5],
+      [0.5, 2.5, 1.5, 3.5],
+    ],
+    [
+      [0.5, 1.5, 2.5, 3.5],
+      [0.5, 2.5, 3.5, 1.5],
+    ],
   ],
   arp: [
-    [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5],
-    [0, 0.75, 1.5, 2, 2.75, 3.5],
-    [0, 0.5, 1.5, 2, 3, 3.5],
+    [
+      [0, 2, 0.5, 2.5, 1.5, 3.5, 1, 3],
+      [0, 2, 0.5, 2.5, 1.5, 3.5, 1, 3],
+    ],
+    [
+      [0, 1.5, 2.5, 0.5, 3.5, 2, 1, 3],
+      [0, 1.5, 2.5, 0.5, 3.5, 2, 1, 3],
+    ],
   ],
   flow: [
-    [0, 1, 2, 3],
-    [0, 0.75, 1.5, 2.5, 3.25],
-    [0, 1.5, 2.5, 3.5],
+    [
+      [0, 2, 1, 3, 0.5, 2.5],
+      [0, 2, 1, 3, 0.5, 2.5],
+    ],
+    [
+      [0, 2.5, 1.5, 3.5, 0.5, 2],
+      [0, 2.5, 1.5, 3.5, 0.5, 2],
+    ],
   ],
-  sustain: [[0, 2.5]],
+  sustain: [
+    [
+      [0, 2.5],
+      [0, 2.5],
+    ],
+  ],
   trap: [
-    [0, 0.75, 1.5, 2.75, 3.5],
-    [0, 1.5, 2.25, 3.25, 3.75],
-    [0, 0.5, 1.75, 2.5, 3.5],
-    [0, 1.25, 2.75, 3.75],
+    [
+      [0, 2.5, 1.5, 3.5, 3.75],
+      [0, 2, 3.5, 1.5, 3.75],
+    ],
+    [
+      [0, 2, 3.25, 1.5, 3.75],
+      [0, 2.5, 3.5, 1.25, 3.75],
+    ],
+    [
+      [0, 2.75, 1.5, 3.5, 3.75],
+      [0, 2.75, 1.5, 3.5, 3.75],
+    ],
   ],
   drill: [
-    [0, 0.75, 1.75, 2.75, 3.25, 3.75],
-    [0, 1.5, 1.75, 2.5, 3.25],
-    [0, 0.5, 1.25, 2, 3.5, 3.75],
+    [
+      [0, 1.5, 2.75, 3.5, 3.75],
+      [0, 2.5, 1.75, 3.5, 3.75],
+    ],
+    [
+      [0, 1.75, 2.5, 3.5, 3.75],
+      [0, 2.75, 1.5, 3.5, 3.75],
+    ],
   ],
   soul: [
-    [0.5, 1.25, 2, 2.75, 3.5],
-    [0.75, 1.5, 2.5, 3.25],
-    [0, 1.5, 2.25, 3.5],
-    [0.5, 1, 2.5, 3.25],
+    [
+      [0, 2.5, 1.75, 3.5, 3.75],
+      [0, 2.5, 1.5, 3.5, 3.75],
+    ],
+    [
+      [0, 2, 3.25, 1.5, 3.75],
+      [0, 2.75, 1.75, 3.5, 3.75],
+    ],
   ],
   pulse: [
-    [0, 1, 2, 3],
-    [0, 0.5, 1, 2, 2.5, 3],
+    [
+      [0, 2, 1, 3],
+      [0, 2, 1, 3],
+    ],
+  ],
+  log: [
+    [
+      [0.75, 2.5, 1.75, 3.25, 3.5, 3.75],
+      [0.75, 2.75, 1.5, 3.25, 3.5, 3.75],
+    ],
+    [
+      [0.5, 2.25, 1.75, 3, 3.5, 3.75],
+      [0.5, 2.5, 1.25, 3.25, 3.5, 3.75],
+    ],
+  ],
+};
+const LEADS = {
+  neo_soul: [
+    [
+      [0.75, 1.5, 3, 2.5, 3.5],
+      [0.5, 2.5, 1.25, 3.25, 3.5],
+    ],
+    [
+      [0.5, 1.25, 2.75, 2, 3.25],
+      [0.75, 2.5, 1.5, 3, 3.5],
+    ],
+    [
+      [1, 2.5, 3.25, 1.75, 3.5],
+      [0.75, 2, 3, 1.5, 3.5],
+    ],
+  ],
+  lofi: [
+    [
+      [0.75, 2.5, 1.5, 3.25],
+      [1, 2.75, 1.75, 3.5],
+    ],
+    [
+      [1.5, 3, 2.25, 0.5],
+      [0.75, 2.5, 1.5, 3.25],
+    ],
+  ],
+  trap: [
+    [
+      [0.75, 1.5, 3, 2.5, 3.5],
+      [0.75, 1.5, 3, 2.5, 3.5],
+    ],
+    [
+      [0.5, 1.5, 2.75, 2.25, 3.5],
+      [0.5, 1.5, 2.75, 2.25, 3.5],
+    ],
+    [
+      [0, 1, 2.5, 1.75, 3.5],
+      [0, 1, 2.5, 1.75, 3.5],
+    ],
+  ],
+  uk_drill: [
+    [
+      [0.5, 2, 3.25, 1.25, 3.5],
+      [0.5, 2, 3.25, 1.25, 3.5],
+    ],
+    [
+      [0, 1.5, 3, 2.25, 3.5],
+      [0, 1.5, 3, 2.25, 3.5],
+    ],
   ],
   cinematic: [
-    [0, 1.5, 3],
-    [0.5, 2, 3.5],
-    [0, 1, 2.5, 3.5],
+    [
+      [0.5, 2.5, 3.25],
+      [1, 2.5, 3.5],
+    ],
+    [
+      [0, 2, 3],
+      [0.5, 2.5, 3.5],
+    ],
+    [
+      [1, 2.75, 3.5],
+      [0.5, 2.25, 3.25],
+    ],
   ],
-  spark: [
-    [0, 0.5, 1.5, 2, 2.5, 3.5],
-    [0.5, 1.25, 2, 2.75, 3.25],
-    [0, 0.75, 1.5, 2.5, 3.5],
+  amapiano: [
+    [
+      [1, 2.75, 1.75, 3.25],
+      [0.5, 2, 3, 1.25],
+    ],
+    [
+      [0.75, 2.25, 1.5, 3.5],
+      [1, 2.5, 3.25, 1.75],
+    ],
+  ],
+  hawaiian: [
+    [
+      [0.5, 1.5, 2.75, 2.25, 3.25],
+      [0.75, 1.5, 3, 2.25, 3.5],
+    ],
+    [
+      [0, 1.5, 2.5, 1, 3.25],
+      [0.5, 2, 3, 1.25, 3.5],
+    ],
   ],
 };
 const CONTOURS = [
-  [0, 1, 2, 1, 0, -1, 0, 0],
-  [0, 2, 1, 0, -1, 1, 0, -1],
-  [0, -1, -2, 0, 1, 2, 1, 0],
-  [0, 0, 2, 1, 0, -2, -1, 0],
-  [0, 1, 0, 3, 2, 1, 0, -1],
-  [0, -2, -1, 0, 2, 1, 0, 0],
+  [0, 1, 2, 1, 0, -1, 1, 0],
+  [0, 0, 2, 1, 0, 1, -1, 0],
+  [2, 1, 0, 1, 2, 1, -1, 0],
+  [0, -1, 0, 2, 1, 0, 1, 0],
+  [1, 2, 1, 0, 1, 0, -1, 0],
+  [0, 2, 1, 0, 0, -1, 1, 0],
+  [0, 1, 0, -1, 0, 2, 1, 0],
+  [1, 0, 1, 2, 1, 0, -1, 0],
 ];
-const pick = (items, rng) => items[Math.floor(rng() * items.length)];
-const round = (n) => Math.round(n * 10000) / 10000;
-function phraseRhythm(pattern, rng) {
-  const result = [...pattern];
-  if (result.length > 2) {
-    const i = 1 + Math.floor(rng() * (result.length - 1));
-    const shifted = Math.max(
-      0.25,
-      Math.min(3.75, result[i] + pick([-0.25, 0.25], rng)),
-    );
-    if (!result.includes(shifted)) result[i] = shifted;
-  }
-  return result.sort((a, b) => a - b);
-}
+const WRITING = {
+  neo_soul: {
+    bass: "soul",
+    lead: "soul",
+    keyHold: 0.68,
+    bassHold: 0.65,
+    leadHold: 0.72,
+    chordHits: 4,
+    bassHits: 5,
+    leadHits: 5,
+  },
+  lofi: {
+    bass: "soul",
+    lead: "soul",
+    keyHold: 0.8,
+    bassHold: 0.78,
+    leadHold: 0.86,
+    chordHits: 3,
+    bassHits: 4,
+    leadHits: 4,
+  },
+  trap: {
+    bass: "trap",
+    lead: "trap",
+    keyHold: 0.58,
+    bassHold: 0.86,
+    leadHold: 0.55,
+    chordHits: 3,
+    bassHits: 5,
+    leadHits: 5,
+  },
+  uk_drill: {
+    bass: "drill",
+    lead: "trap",
+    keyHold: 0.4,
+    bassHold: 0.72,
+    leadHold: 0.46,
+    chordHits: 3,
+    bassHits: 5,
+    leadHits: 5,
+  },
+  cinematic: {
+    bass: "pulse",
+    lead: "cinematic",
+    keyHold: 1.1,
+    bassHold: 0.92,
+    leadHold: 1.15,
+    chordHits: 2,
+    bassHits: 3,
+    leadHits: 3,
+  },
+  amapiano: {
+    bass: "log",
+    lead: "spark",
+    keyHold: 0.3,
+    bassHold: 0.33,
+    leadHold: 0.58,
+    chordHits: 4,
+    bassHits: 6,
+    leadHits: 4,
+  },
+  hawaiian: {
+    bass: "soul",
+    lead: "soul",
+    keyHold: 0.32,
+    bassHold: 0.62,
+    leadHold: 0.65,
+    chordHits: 4,
+    bassHits: 4,
+    leadHits: 5,
+  },
+};
 export function swingBeat(beat, amount) {
-  // Eighth-note pairs: preserve the downbeat, delay the second half and its sixteenths.
   const whole = Math.floor(beat),
     fraction = beat - whole;
   return (
@@ -231,45 +508,31 @@ export function swingBeat(beat, amount) {
       : 0.5 + amount / 6 + (fraction - 0.5) * (1 - amount / 3))
   );
 }
-function positions(pattern, density, space, rng, layer, groove, phraseEnd) {
-  const extras = Array.from({ length: 16 }, (_, i) => i / 4).filter(
-    (b) => !pattern.includes(b),
-  );
-  const ranked = extras
-    .map((b) => ({ b, rank: rng() }))
-    .sort((a, b) => a.rank - b.rank)
-    .map((x) => x.b);
-  const ordered = [...pattern, ...ranked];
-  const limit =
-    groove === "sustain"
-      ? 2
-      : layer === "keys" && !["arp", "flow"].includes(groove)
-        ? 6
-        : layer === "bass"
-          ? 8
-          : 10;
-  const count = Math.max(
-    1,
-    Math.min(limit, Math.round(1 + density * (limit - 1) * space)) -
-      (phraseEnd && layer === "melody" ? 1 : 0),
-  );
-  return ordered.slice(0, count).sort((a, b) => a - b);
-}
-function chordPitch(chord, target, last, low = 60, high = 91) {
-  const choices = Array.from(
+function nearest(pcs, target, low, high, last = target) {
+  const candidates = Array.from(
     { length: high - low + 1 },
     (_, i) => low + i,
-  ).filter((n) => chord.notes.some((p) => p % 12 === n % 12));
-  return choices.sort(
+  ).filter((n) => pcs.includes(pc(n)));
+  return candidates.sort(
     (a, b) =>
       Math.abs(a - target) +
-      Math.abs(a - last) * 0.18 -
-      (Math.abs(b - target) + Math.abs(b - last) * 0.18),
+      0.32 * Math.abs(a - last) -
+      (Math.abs(b - target) + 0.32 * Math.abs(b - last)),
   )[0];
+}
+function attacks(pattern, density, space, phase, max) {
+  const limit = Math.min(max, pattern.length);
+  // Fractional ranks spread activity across bars, giving the slider genuine
+  // progression without turning every bar into a maximum-density fill.
+  const count = Math.min(
+    limit,
+    1 + Math.floor(density * (limit - 1) * space + phase),
+  );
+  return pattern.slice(0, Math.max(1, count)).sort((a, b) => a - b);
 }
 export function writePart(chords, settings, rng, layer, p, style) {
   const mood = moodProfile(settings, style),
-    events = [];
+    rules = WRITING[settings.style];
   const groove =
     layer === "keys"
       ? settings.rhythm !== "auto"
@@ -278,42 +541,51 @@ export function writePart(chords, settings, rng, layer, p, style) {
           ? style.rhythm
           : p.groove
       : p.groove === "auto"
-        ? layer === "bass"
-          ? ["trap", "uk_drill"].includes(settings.style)
-            ? "trap"
-            : "soul"
-          : ["trap", "uk_drill"].includes(settings.style)
-            ? "trap"
-            : settings.style === "cinematic"
-              ? "cinematic"
-              : "soul"
+        ? rules[layer === "bass" ? "bass" : "lead"]
         : p.groove;
-  const rhythms = RHYTHMS[groove];
-  const call = phraseRhythm(pick(rhythms, rng), rng),
-    answer = phraseRhythm(pick(rhythms, rng), rng);
-  const contour = [...pick(CONTOURS, rng)],
-    center = mood.center + pick([-3, 0, 3], rng),
-    direction = pick([1, -1], rng);
-  // Mutate one contour step for a fresh hook, then repeat/develop that identity.
-  const changedStep = 1 + Math.floor(rng() * 6);
-  contour[changedStep] = Math.max(
-    -3,
-    Math.min(3, contour[changedStep] + pick([-1, 1], rng)),
+  const logRole = layer === "bass" && p.sound === "log";
+  const leadStyle =
+    groove === "cinematic"
+      ? "cinematic"
+      : groove === "trap"
+        ? settings.style === "uk_drill"
+          ? "uk_drill"
+          : "trap"
+        : settings.style;
+  const phrase = pick(
+    layer === "melody" ? LEADS[leadStyle] : RHYTHMS[logRole ? "log" : groove],
+    rng,
   );
-  const arpShape = pick(["up", "down", "pendulum", "broken"], rng);
-  const rootRegister = ["808", "sub", "punch808", "long808", "log"].includes(
-    p.sound,
-  )
-    ? 24
-    : 36;
+  const shape = [...pick(CONTOURS, rng)];
+  const center = mood.center + pick([-2, 0, 2], rng);
+  const lowLead = Math.max(64, center - 4),
+    highLead = Math.min(88, center + 7);
+  const scale = (
+    mood.mode === "major" ? [0, 2, 4, 7, 9] : [0, 3, 5, 7, 10]
+  ).map((n) => pc(n + settings.key));
+  const phases = Array.from({ length: 4 }, () => rng() * 0.95);
+  const shapeStart = pick([0, 2, 4], rng);
+  const upperBass = p.sound === "finger" || p.sound === "piano";
+  const bassLow = upperBass ? 36 : 28,
+    bassHigh = upperBass ? 55 : 51;
+  const arpShape = pick(
+    [
+      [0, 1, 2, 1],
+      [0, 2, 1, 2],
+      [2, 1, 0, 1],
+      [0, 1, 0, 2],
+    ],
+    rng,
+  );
+  const events = [];
   let last = center;
-  const add = (bar, beat, duration, midi, velocity) => {
+  function add(bar, beat, duration, midi, velocity, slide) {
     const local = round(
       Math.max(
         0,
         Math.min(
           3.98,
-          swingBeat(beat, p.swing) + (rng() - 0.5) * 0.035 * settings.humanize,
+          swingBeat(beat, p.swing) + (rng() - 0.5) * 0.022 * settings.humanize,
         ),
       ),
     );
@@ -325,112 +597,179 @@ export function writePart(chords, settings, rng, layer, p, style) {
         Math.floor(Math.min(duration, 4 - local) * 10000) / 10000,
       ),
       midi,
-      velocity: Math.min(
-        0.9,
-        Math.max(
-          0.12,
-          velocity * mood.energy + (rng() - 0.5) * 0.1 * settings.humanize,
+      velocity: Math.max(
+        0.12,
+        Math.min(
+          0.85,
+          velocity * mood.energy + (rng() - 0.5) * 0.06 * settings.humanize,
         ),
       ),
       layer,
+      ...(layer === "bass" ? { slide: Boolean(slide) } : {}),
     });
-  };
+  }
   chords.forEach((c, bar) => {
-    const response = bar % 2 === 1,
-      phraseEnd = bar % 4 === 3;
-    const bSection = c.section === "B",
-      returnPhrase = c.section === "Return";
-    const pattern = response ? answer : call;
-    const density = Math.min(1, p.density * (0.8 + settings.complexity * 0.1));
-    const onsets = positions(
-      pattern,
-      density,
-      mood.space * (bSection ? 1.15 : returnPhrase ? 0.85 : 1),
-      rng,
-      layer,
-      groove,
-      phraseEnd,
+    const answer = bar % 2,
+      end = bar % 4 === 3,
+      sectionLift =
+        c.section === "B" ? 1.08 : c.section === "Return" ? 0.85 : 1;
+    const arpeggio = layer === "keys" && ["arp", "flow"].includes(groove);
+    const max =
+      layer === "keys"
+        ? groove === "sustain" || p.sound === "pad"
+          ? 2
+          : arpeggio
+            ? settings.style === "cinematic"
+              ? 5
+              : 8
+            : rules.chordHits
+        : layer === "bass"
+          ? logRole
+            ? 6
+            : groove === "pulse"
+              ? 4
+              : rules.bassHits
+          : rules.leadHits;
+    // Harmony color affects voices, not a random increase in all three lanes.
+    const activity = layer === "keys" ? 1 : mood.space * sectionLift;
+    const onsets = attacks(
+      phrase[answer],
+      p.density,
+      activity,
+      phases[bar % 4],
+      max,
+    );
+    const timed = onsets.map((b) => swingBeat(b, p.swing));
+    const chordPcs = c.notes.map(pc);
+    // Keep accompaniment below the lead; avoid five-note clustered chord bursts.
+    const shell =
+      c.notes.length > 4
+        ? c.notes.filter(
+            (n) => pc(n) !== pc(c.root + (settings.layers.bass ? 0 : 7)),
+          )
+        : c.notes;
+    const voicing = [
+      ...new Set(
+        shell.map((n) => {
+          while (n > lowLead - 2) n -= 12;
+          while (n < 48) n += 12;
+          return n;
+        }),
+      ),
+    ]
+      .sort((a, b) => a - b)
+      .slice(0, settings.complexity === 1 ? 3 : 4);
+    const root = nearest(
+      [c.root],
+      upperBass ? 40 : 33,
+      bassLow,
+      upperBass ? 47 : 39,
     );
     onsets.forEach((beat, i) => {
-      const gap = (onsets[i + 1] ?? 4) - beat;
-      const accent =
-        (i === 0 ? 1 : 0.84) * (bSection ? 1.08 : 1) * (phraseEnd ? 0.92 : 1);
+      const gap = (timed[i + 1] ?? 4) - timed[i],
+        accent = (i === 0 ? 1 : 0.87) * (end ? 0.95 : 1);
       if (layer === "keys") {
-        if (["arp", "flow"].includes(groove)) {
-          let index =
-            arpShape === "down"
-              ? c.notes.length - 1 - (i % c.notes.length)
-              : arpShape === "pendulum"
-                ? Math.abs(
-                    (i % (c.notes.length * 2 - 2)) - (c.notes.length - 1),
-                  )
-                : arpShape === "broken"
-                  ? (i * 2 + (response ? 1 : 0)) % c.notes.length
-                  : i % c.notes.length;
+        if (arpeggio && p.sound !== "pad") {
+          const n = voicing[arpShape[i % 4] % Math.min(3, voicing.length)];
           add(
             bar,
             beat,
-            Math.min(gap * (groove === "flow" ? 1.15 : 0.8) * mood.hold, 2.8),
-            c.notes[index],
-            0.56 * accent,
+            Math.min(
+              gap * rules.keyHold * mood.hold,
+              groove === "flow" ? 2.5 : 1.1,
+            ),
+            n,
+            0.52 * accent,
           );
         } else {
-          const notes =
-            p.density < 0.25 ? c.notes.filter((n, j) => j < 3) : c.notes;
-          notes.forEach((n, j) =>
+          voicing.forEach((n, j) =>
             add(
               bar,
-              Math.min(3.95, beat + j * 0.008),
-              groove === "sustain"
-                ? Math.min(gap * 0.98, 3.8)
-                : Math.min(gap * 0.78 * mood.hold, 1.6),
+              beat + j * 0.006,
+              Math.min(
+                gap *
+                  (groove === "sustain" || p.sound === "pad"
+                    ? 0.97
+                    : rules.keyHold) *
+                  mood.hold,
+                3.85,
+              ),
               n,
-              0.48 * accent,
+              0.46 * accent,
             ),
           );
         }
       } else if (layer === "bass") {
-        const pc =
-          i === 0
-            ? c.root
-            : response && i === onsets.length - 1
-              ? c.root
-              : c.notes[(i + (bar % 2)) % Math.min(3, c.notes.length)] % 12;
-        let midi = rootRegister + pc;
-        // Place upper bass tones near the root; occasional octave answers connect 808 phrases.
-        while (
-          midi < rootRegister + c.root - 5 &&
-          midi + 12 <= rootRegister + 23
-        )
-          midi += 12;
+        let midi = root,
+          slide = false;
+        const lastHit = i === onsets.length - 1;
+        // Root anchors stay rooted. Soul may answer on a fifth; trap/drill use
+        // a rare octave pickup, never thirds/sevenths wandering through the sub.
         if (
-          ["trap", "drill"].includes(groove) &&
-          i === onsets.length - 2 &&
-          response
+          i > 0 &&
+          upperBass &&
+          !["trap", "drill"].includes(groove) &&
+          i === 1 &&
+          answer
         )
-          midi = Math.min(59, rootRegister + c.root + 12);
-        add(bar, beat, Math.min(gap * 0.94, 3.8), midi, 0.66 * accent);
-      } else {
-        const shape =
-          contour[(i + (response ? 4 : 0)) % contour.length] * direction;
-        const target =
-          center + shape * 2 + (bSection ? 3 : c.section === "A′" ? 1 : 0);
-        const midi =
-          phraseEnd && i === onsets.length - 1
-            ? chordPitch(c, center, last)
-            : chordPitch(c, target, last);
-        last = midi;
-        const hold =
-          groove === "cinematic" ? 1.25 : groove === "trap" ? 0.62 : 0.8;
+          midi = nearest([pc(c.root + 7)], root + 5, bassLow, bassHigh);
+        if (
+          i > 0 &&
+          ["trap", "drill"].includes(groove) &&
+          answer &&
+          lastHit &&
+          beat >= 3
+        ) {
+          midi = Math.min(bassHigh, root + 12);
+          slide = !logRole && !upperBass;
+        }
+        if (logRole && answer && lastHit) midi = Math.min(bassHigh, root + 12);
+        // Only intentional slide targets have a connected preceding note. Normal
+        // root changes release cleanly and retain their tuning.
+        const connects =
+          ["trap", "drill"].includes(groove) &&
+          answer &&
+          i === onsets.length - 2 &&
+          onsets.at(-1) >= 3;
+        const hold = connects ? 1 : logRole ? 0.33 : rules.bassHold;
         add(
           bar,
           beat,
-          Math.min(gap * hold * mood.hold, phraseEnd ? 1.8 : 2.4),
+          Math.min(gap * hold, logRole ? 0.36 : 3.7),
           midi,
-          0.47 * accent,
+          (logRole && i > 2 ? 0.43 : 0.65) * accent,
+          slide,
         );
+      } else {
+        const s = shape[(shapeStart + i + (answer ? 4 : 0)) % shape.length];
+        const target = center + s * 2 + (c.section === "B" && end ? 2 : 0);
+        let midi = nearest(chordPcs, target, lowLead, highLead, last);
+        const weak = !Number.isInteger(beat) && i > 0 && !lastHit(onsets, i);
+        // Short neighboring pentatonic tones can connect anchors. Long/strong
+        // notes resolve to the active harmony; cap leaps to keep a singable line.
+        const passing = nearest(scale, target, lowLead, highLead, last);
+        if (
+          weak &&
+          Math.abs(passing - last) <= 2 &&
+          gap < 0.8 &&
+          !["trap", "uk_drill"].includes(settings.style)
+        )
+          midi = passing;
+        if (Math.abs(midi - last) > 7)
+          midi = nearest(chordPcs, last, lowLead, highLead, last);
+        last = midi;
+        const ending = end && i === onsets.length - 1;
+        const hold = !chordPcs.includes(pc(midi))
+          ? Math.min(gap * 0.5, 0.35)
+          : Math.min(
+              gap * 0.95,
+              gap * rules.leadHold * mood.hold,
+              ending ? 1.25 : 2.8,
+            );
+        add(bar, beat, hold, midi, 0.5 * accent);
       }
     });
   });
   return events.sort((a, b) => a.beat - b.beat || a.midi - b.midi);
 }
+const lastHit = (onsets, i) => i === onsets.length - 1;

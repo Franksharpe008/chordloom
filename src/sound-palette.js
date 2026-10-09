@@ -1,4 +1,4 @@
-import { defaultParts } from "./music-engine.js?v=5";
+import { defaultParts } from "./music-engine.js?v=6";
 // New sessions use a coherent palette; legacy sessions retain their saved choices.
 export const STYLE_PALETTES = {
   neo_soul: {
@@ -37,6 +37,15 @@ export const STYLE_PALETTES = {
     melody: ["marimba", "soul", 0.58],
   },
 };
+export const STYLE_TEMPOS = {
+  neo_soul: 92,
+  lofi: 78,
+  trap: 140,
+  uk_drill: 142,
+  cinematic: 80,
+  amapiano: 112,
+  hawaiian: 100,
+};
 export function applyStylePalette(settings) {
   const parts = structuredClone(settings.parts ?? defaultParts());
   for (const [lane, [sound, groove, volume]] of Object.entries(
@@ -51,7 +60,7 @@ export function applyStylePalette(settings) {
       glide: settings.style === "uk_drill" ? 0.65 : 0.12,
     });
   }
-  return { ...settings, parts };
+  return { ...settings, bpm: STYLE_TEMPOS[settings.style], parts };
 }
 export const SAMPLE_BANKS = {
   piano: Object.fromEntries(

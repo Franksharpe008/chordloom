@@ -1,5 +1,5 @@
-import { moodProfile, harmonicRoutes, writePart } from "./composition.js?v=5";
-export { MOODS } from "./composition.js?v=5";
+import { moodProfile, harmonicRoutes, writePart } from "./composition.js?v=6";
+export { MOODS } from "./composition.js?v=6";
 export const musicalMode = (settings) =>
   moodProfile(settings, STYLES[settings.style]).mode;
 const isLowBass = (sound) =>
@@ -221,13 +221,13 @@ function smoothVoicing(root, intervals, previous = []) {
     ].sort((a, b) => a - b);
     for (const shift of [-12, 0, 12]) {
       const notes = rotated.map((n) => n + shift);
-      if (notes[0] >= 48 && notes.at(-1) <= 86) candidates.push(notes);
+      if (notes[0] >= 48 && notes.at(-1) <= 76) candidates.push(notes);
     }
   }
   const cost = (notes) => {
     const mean = notes.reduce((a, b) => a + b) / notes.length;
     return (
-      Math.abs(mean - 65) * 0.4 +
+      Math.abs(mean - 61) * 0.8 +
       (previous.length
         ? notes.reduce(
             (sum, n, i) =>
@@ -293,6 +293,7 @@ export function generate(settings, seed, previous = []) {
     style = STYLES[settings.style];
   const routes = harmonicRoutes(settings, style, rng);
   const mode = musicalMode(settings);
+  const soulful = ["neo_soul", "lofi"].includes(settings.style);
   const chords = [];
   // Quality follows harmonic function, including alternate patterns, rather than a fixed third on every root.
   const majorKinds = {
@@ -320,27 +321,53 @@ export function generate(settings, seed, previous = []) {
           : "A"
         : "B";
     let offset = routes[section === "B" ? 1 : 0][bar % 4];
+    const baseKind =
+      (mode === "major" ? majorKinds : minorKinds)[offset] ?? "maj";
+    // Natural-minor loops do not need a raised leading-tone jazz turnaround.
+    // Extensions stay available, but dense thirteenths belong to the soul lane.
     let kind = quality(
-      (mode === "major" ? majorKinds : minorKinds)[offset] ?? "maj",
-      settings.complexity,
+      mode === "minor" && offset === 7 && !soulful ? "m" : baseKind,
+      soulful ? settings.complexity : Math.min(2, settings.complexity),
     );
+    if (!soulful && settings.complexity === 3 && !["dom", "7"].includes(kind))
+      kind = kind.startsWith("m") && !kind.startsWith("maj") ? "madd9" : "add9";
     let functionNote = "";
-    if (settings.complexity === 3 && bar % 8 === 6 && mode === "major") {
+    if (
+      soulful &&
+      settings.complexity === 3 &&
+      bar % 8 === 6 &&
+      mode === "major"
+    ) {
       offset = 5;
       kind = "m9";
       functionNote = "Borrowed iv · a darker turn";
     }
-    if (settings.complexity === 3 && bar % 8 === 4 && mode === "major") {
+    if (
+      soulful &&
+      settings.complexity === 3 &&
+      bar % 8 === 4 &&
+      mode === "major"
+    ) {
       offset = 4;
       kind = "7";
       functionNote = "V/vi · leads into the relative minor";
     }
-    if (settings.complexity === 3 && bar % 8 === 5 && mode === "major") {
+    if (
+      soulful &&
+      settings.complexity === 3 &&
+      bar % 8 === 5 &&
+      mode === "major"
+    ) {
       offset = 9;
       kind = "m9";
       functionNote = "Relative minor · resolves the secondary dominant";
     }
-    if (bar === settings.bars - 1 && settings.bars > 4) {
+    if (
+      settings.style === "neo_soul" &&
+      bar === settings.bars - 1 &&
+      settings.bars > 4 &&
+      settings.mood !== "dreamy"
+    ) {
       offset = 7;
       kind = quality("dom", settings.complexity);
       functionNote = "Dominant turnaround · resolves on repeat";

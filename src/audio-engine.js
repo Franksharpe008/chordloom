@@ -1,9 +1,17 @@
-import { PARTS, SOUNDS, partSettings, noteName } from "./music-engine.js?v=5";
+import { PARTS, SOUNDS, partSettings, noteName } from "./music-engine.js?v=6";
 
 // A glide is a connected phrase, never a detuned attack on every bass note.
-export function bassTransition(previous, midi, time, duration, part) {
+export function bassTransition(
+  previous,
+  midi,
+  time,
+  duration,
+  part,
+  eligible = true,
+) {
   if (
     !previous ||
+    !eligible ||
     part.glide <= 0 ||
     time < previous.time ||
     time - previous.end >= 0.24 ||
@@ -165,7 +173,14 @@ export function createRack(Tone, buffers) {
     const duration = Math.max(0.008, e.duration * secondsPerBeat);
     if (e.layer === "bass" && ["punch808", "long808"].includes(p.sound)) {
       const previous = lastBass[p.sound];
-      const slide = bassTransition(previous, e.midi, time, duration, p);
+      const slide = bassTransition(
+        previous,
+        e.midi,
+        time,
+        duration,
+        p,
+        e.slide !== false,
+      );
       voice.play(e.midi, duration, time, e.velocity, slide);
       lastBass[p.sound] = { midi: e.midi, time, end: time + duration };
     } else if (e.layer === "bass" && (p.sound === "808" || p.sound === "sub")) {
@@ -173,7 +188,14 @@ export function createRack(Tone, buffers) {
       const previous = lastBass[p.sound];
       voice.triggerAttackRelease(noteName(e.midi), duration, time, e.velocity);
       const target = Tone.Frequency(noteName(e.midi)).toFrequency();
-      const slide = bassTransition(previous, e.midi, time, duration, p);
+      const slide = bassTransition(
+        previous,
+        e.midi,
+        time,
+        duration,
+        p,
+        e.slide !== false,
+      );
       if (slide) {
         voice.frequency.setValueAtTime(
           Tone.Frequency(noteName(slide.from)).toFrequency(),

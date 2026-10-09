@@ -19,16 +19,16 @@ import {
   eventsInSlice,
   exportEvents,
   preserveKeptParts,
-} from "./music-engine.js?v=5";
+} from "./music-engine.js?v=6";
 import {
   readLibrary,
   saveProject,
   importProject,
-} from "./project-store.js?v=5";
-import { createRack } from "./audio-engine.js?v=5";
-import { pcmWave, zipFiles } from "./file-formats.js?v=5";
-import { SAMPLE_BANKS, applyStylePalette } from "./sound-palette.js?v=5";
-import { sessionName } from "./session-names.js?v=5";
+} from "./project-store.js?v=6";
+import { createRack } from "./audio-engine.js?v=6";
+import { pcmWave, zipFiles } from "./file-formats.js?v=6";
+import { SAMPLE_BANKS, applyStylePalette } from "./sound-palette.js?v=6";
+import { sessionName } from "./session-names.js?v=6";
 const $ = (id) => document.getElementById(id);
 let project = {
   ...generate(applyStylePalette(DEFAULT_SETTINGS), seed()),
@@ -457,7 +457,7 @@ function renderParts() {
       input.title =
         field === "glide"
           ? glideSupported
-            ? "Slide time between connected bass notes of different pitch"
+            ? "Slide time for intentional octave pickups; normal root changes stay straight"
             : "Choose an 808 or sub bass to use pitch glide"
           : field === "density"
             ? "Write fewer or more notes in this part"
@@ -520,7 +520,7 @@ function renderParts() {
       const hint = document.createElement("div");
       hint.className = "part-count";
       hint.textContent = ["808", "sub", "punch808", "long808"].includes(p.sound)
-        ? "Glide connects nearby notes of different pitch; 0% keeps attacks straight."
+        ? "Glide shapes intentional octave pickups in trap/drill grooves. Raise density to add fills; 0% keeps them straight."
         : "Pitch glide is available on 808 and sub bass sounds.";
       card.append(hint);
     }
@@ -1179,11 +1179,12 @@ for (const name of ["style", "mood", "key", "bars", "complexity"])
         { ...project, ...generate(s, project.seed, keep) },
         old,
       );
+      if (name === "style") $("bpm").value = project.settings.bpm;
       changed();
       render();
       status(
         name === "style"
-          ? "Style palette, bass pocket and melody updated together. Playback continues; kept notes follow the new harmony."
+          ? "Style tempo, palette, bass pocket and melody updated together. Tempo stays editable; playback continues."
           : name === "mood"
             ? MOODS[s.mood].name +
               " · new harmony, phrasing and space. Playback continues."

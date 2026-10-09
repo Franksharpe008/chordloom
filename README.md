@@ -4,15 +4,19 @@ Turn a piano idea into a layered performance, shape its harmony, and keep the se
 
 **[Open the live studio](https://chordloom-kappa.vercel.app)** · [Selected work](https://github.com/Franksharpe008/frank-sharpe-portfolio) · [LinkedIn](https://www.linkedin.com/in/therelentlessconnoisseur/)
 
+## Composition 06 review
+
+This branch contains the genre-writing revision under listening review. The public studio currently retains the accepted recorded-instrument baseline while the new musical result is assessed. Functional checks and clean exports are verified separately from listening preference.
+
 ## Produce an idea
 
 - Five musical moods, plus Style character: warm, dreamy, dark, uplifting and tense. Mood affects major/minor harmony, melodic register, density, note lengths and dynamics; Name mood only shapes session titles.
-- Phrase writing creates a seeded rhythmic hook and melodic contour, call/response, contrasting B material and a return in longer arrangements. New variations alter harmony, phrasing and contours even with Human feel at zero.
-- Seven starting styles: neo-soul, lo-fi jazz, dark trap, cinematic, amapiano keys, UK drill, and island piano.
-- Three harmonic levels: triads, sevenths, and richer extensions with borrowed chords and secondary-dominant turns.
+- Genre-specific writing chooses a two-bar hook, rooted bass line and supportive accompaniment, then develops a related answer and return. Melodic leaps and rests are bounded; dense settings add deliberate fills rather than arbitrary sixteenths. New variations alter harmony, phrasing and contours even with Human feel at zero.
+- Seven starting styles: neo-soul, lo-fi jazz, dark trap, cinematic, amapiano keys, UK drill, and island piano. Selecting a style supplies a matching editable tempo. These are chord, bass and melody starters for further production in a DAW; there is no drum, vocal or commercial-hit generation claim.
+- Three harmonic levels: triads, sevenths, and richer extensions. Borrowed chords and secondary-dominant turns belong to soul/lo-fi writing; trap, drill and score avoid a forced jazz turnaround.
 - Inversions chosen to reduce movement between chords; independent keys, bass and melodic parts follow the harmony.
 - Editable chord colors, locked bars, rhythm choices, human timing/velocity, tempo, and 4–32 bars.
-- **Part Lab:** change the sound and groove of keys, bass or melody independently. Combine soul keys with trap/808 bass, or add cinematic melody. Density changes note activity across the range; swing shifts actual eighth/sixteenth timing; level adjusts live gain and exports. These sliders respond while dragging without restarting playback. Pitch glide connects nearby changing pitches on 808/sub sounds, with longer slides as the control rises; it is disabled on instruments that do not support it.
+- **Part Lab:** change the sound and groove of keys, bass or melody independently. Combine soul keys with trap/808 bass, or add cinematic melody. Density changes note activity across the range; swing shifts actual eighth/sixteenth timing; level adjusts live gain and exports. These sliders respond while dragging without restarting playback. For newly written notes, pitch glide shapes intentional octave pickups on 808/sub sounds, with longer slides as the control rises; ordinary root changes stay straight. Legacy sessions retain their saved note behavior. Glide is disabled on instruments that do not support it.
 - Recorded Yamaha C5 piano, two-take finger bass guitar and marimba, plus electric keys, pads, bells, sub and log drum. **Atlanta punch 808** and **Long slide 808** use processed hardware recordings with a stable C2 reference and per-note tuning. Style changes select matching sounds, pockets and motifs; you can still mix parts independently. The legacy synthesized 808 remains available for old takes.
 - Part muting, sound swaps, groove changes, tempo and note edits keep the running playhead in place. New session, opening/importing a session, and Stop intentionally return to the start.
 - Click a piano-roll note or **Edit notes** to change pitch, beat, duration and velocity; add or remove notes. Edits automatically enable **Keep notes**. Undo restores removals.

@@ -6,7 +6,7 @@ import {
   PARTS,
   defaultParts,
   clone,
-} from "./music-engine.js?v=5";
+} from "./music-engine.js?v=6";
 export const STORAGE_KEY = "chordloom.projects.v1";
 export function validateProject(project) {
   const s = project?.settings;
@@ -90,6 +90,7 @@ export function validateProject(project) {
     !project.events.every(
       (e) =>
         e &&
+        (e.slide === undefined || typeof e.slide === "boolean") &&
         validNote(e.midi) &&
         ["keys", "bass", "melody"].includes(e.layer) &&
         Number.isInteger(e.bar) &&
