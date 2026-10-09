@@ -1,4 +1,21 @@
-import { PARTS, SOUNDS, partSettings, noteName } from "./music-engine.js";
+import { PARTS, SOUNDS, partSettings, noteName } from "./music-engine.js?v=5";
+
+// A glide is a connected phrase, never a detuned attack on every bass note.
+export function bassTransition(previous, midi, time, duration, part) {
+  if (
+    !previous ||
+    part.glide <= 0 ||
+    time < previous.time ||
+    time - previous.end >= 0.24 ||
+    midi === previous.midi ||
+    Math.abs(midi - previous.midi) > 12
+  )
+    return null;
+  return {
+    from: previous.midi,
+    seconds: Math.min(0.34 * part.glide, duration * 0.65),
+  };
+}
 
 // One factory for live playback and offline stems: no approximate export instrument.
 export function createRack(Tone, buffers) {
@@ -53,7 +70,7 @@ export function createRack(Tone, buffers) {
           volume: -17,
         });
       else if (sound === "punch808" || sound === "long808") {
-        instrument = sampled808(Tone, buffers[sound].C2, gain, sound);
+        instrument = sampled808(Tone, buffers[sound].C2, gain);
       } else if (sound === "log")
         instrument = new Tone.FMSynth({
           harmonicity: 1,
@@ -148,37 +165,23 @@ export function createRack(Tone, buffers) {
     const duration = Math.max(0.008, e.duration * secondsPerBeat);
     if (e.layer === "bass" && ["punch808", "long808"].includes(p.sound)) {
       const previous = lastBass[p.sound];
-      const slide =
-        previous &&
-        p.groove === "drill" &&
-        time >= previous.time &&
-        time - previous.end < 0.22 &&
-        Math.abs(e.midi - previous.midi) <= 12
-          ? previous.midi
-          : undefined;
-      voice.play(e.midi, duration, time, e.velocity, p.glide, slide);
+      const slide = bassTransition(previous, e.midi, time, duration, p);
+      voice.play(e.midi, duration, time, e.velocity, slide);
       lastBass[p.sound] = { midi: e.midi, time, end: time + duration };
     } else if (e.layer === "bass" && (p.sound === "808" || p.sound === "sub")) {
       // Monophonic bass is cut at the next attack; glide only connects close phrases.
       const previous = lastBass[p.sound];
       voice.triggerAttackRelease(noteName(e.midi), duration, time, e.velocity);
       const target = Tone.Frequency(noteName(e.midi)).toFrequency();
-      if (
-        p.sound === "808" &&
-        previous &&
-        time >= previous.time &&
-        p.groove === "drill" &&
-        time - previous.end < 0.08 &&
-        Math.abs(e.midi - previous.midi) <= 12 &&
-        p.glide > 0
-      ) {
+      const slide = bassTransition(previous, e.midi, time, duration, p);
+      if (slide) {
         voice.frequency.setValueAtTime(
-          Tone.Frequency(noteName(previous.midi)).toFrequency(),
+          Tone.Frequency(noteName(slide.from)).toFrequency(),
           time,
         );
         voice.frequency.exponentialRampToValueAtTime(
           target,
-          time + Math.min(0.09, p.glide * 0.12, duration * 0.4),
+          time + slide.seconds,
         );
       }
       // No pitch-drop on every attack: the selected note must remain in tune.
@@ -206,11 +209,11 @@ export function createRack(Tone, buffers) {
 }
 
 // Rate automation changes pitch on the recorded body; note-off gates it cleanly.
-function sampled808(Tone, buffer, output, sound) {
+function sampled808(Tone, buffer, output) {
   const sources = new Set();
   let previous;
   return {
-    play(midi, duration, time, velocity, glide, from) {
+    play(midi, duration, time, velocity, slide) {
       if (previous && time < previous.end) previous.source.stop(time);
       const rate = 2 ** ((midi - 36) / 12);
       const source = new Tone.ToneBufferSource({
@@ -224,11 +227,11 @@ function sampled808(Tone, buffer, output, sound) {
         },
       }).connect(output);
       sources.add(source);
-      if (from !== undefined && glide > 0) {
-        source.playbackRate.setValueAtTime(2 ** ((from - 36) / 12), time);
+      if (slide) {
+        source.playbackRate.setValueAtTime(2 ** ((slide.from - 36) / 12), time);
         source.playbackRate.exponentialRampToValueAtTime(
           rate,
-          time + Math.min(0.18, glide * 0.22, duration * 0.4),
+          time + slide.seconds,
         );
       }
       source.start(time, 0, duration, velocity * 0.11);

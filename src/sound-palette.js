@@ -1,4 +1,4 @@
-import { defaultParts } from "./music-engine.js";
+import { defaultParts } from "./music-engine.js?v=5";
 // New sessions use a coherent palette; legacy sessions retain their saved choices.
 export const STYLE_PALETTES = {
   neo_soul: {

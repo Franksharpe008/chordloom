@@ -1,4 +1,4 @@
-import { random } from "./music-engine.js";
+import { random } from "./music-engine.js?v=5";
 const MOODS = {
   cosmic: [
     "Orbital",

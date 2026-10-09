@@ -8,7 +8,7 @@
       name="description"
       content="Mix piano, electric keys, pads, bells and 808 bass. Shape independent parts, edit notes, save sessions and export audio stems and MIDI."
     />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=5" />
     <script
       src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"
       defer
@@ -17,7 +17,7 @@
       src="https://unpkg.com/@tonejs/midi@2.0.28/build/Midi.js"
       defer
     ></script>
-    <script type="module" src="src/app.js"></script>
+    <script type="module" src="src/app.js?v=5"></script>
   </head>
   <body>
     <div class="studio">
@@ -26,7 +26,7 @@
           ><span class="brand-mark">≋</span>chordloom<span class="dot"
             >.</span
           ></a
-        ><span class="edition">PRODUCER STUDIO <b>04</b></span>
+        ><span class="edition">PRODUCER STUDIO <b>05</b></span>
         <div class="sound-control">
           <span id="sound-state">Loading sounds…</span
           ><button id="activate" class="outline" hidden>Retry sounds</button>
@@ -85,7 +85,7 @@
                 <option value="bright">Electric</option>
               </select></label
             ><span
-              >Fresh names draw on your local time, mood and musical
+              >Fresh names draw on your local time, name mood and musical
               choices.</span
             >
           </div>
@@ -99,6 +99,16 @@
                 <option value="amapiano">Amapiano keys</option>
                 <option value="uk_drill">UK drill</option>
                 <option value="hawaiian">Island piano</option>
+              </select></label
+            >
+            <label
+              >MUSICAL MOOD<select id="mood">
+                <option value="auto">Style character</option>
+                <option value="warm">Warm &amp; soulful</option>
+                <option value="dreamy">Dreamy &amp; floating</option>
+                <option value="dark">Dark &amp; brooding</option>
+                <option value="uplifting">Bright &amp; uplifting</option>
+                <option value="tense">Tense &amp; driving</option>
               </select></label
             >
             <label
@@ -169,8 +179,10 @@
               <span id="key-description" class="small"></span>
             </div>
             <p class="helper">
-              Click a chord to hear it and choose another color. Lock a bar to
-              keep it when you generate a variation.
+              Mood shapes harmony, melody and space. Variations develop a call,
+              response and contrasting section. Click a chord to hear it and
+              choose another color. Lock a bar to keep it when you generate a
+              variation.
             </p>
             <div id="chords" class="chords"></div>
             <div id="chord-editor" class="chord-editor" hidden>

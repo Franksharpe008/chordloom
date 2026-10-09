@@ -1,6 +1,8 @@
 import {
   DEFAULT_SETTINGS,
   STYLES,
+  musicalMode,
+  MOODS,
   NOTE_NAMES,
   PARTS,
   SOUNDS,
@@ -17,12 +19,16 @@ import {
   eventsInSlice,
   exportEvents,
   preserveKeptParts,
-} from "./music-engine.js";
-import { readLibrary, saveProject, importProject } from "./project-store.js";
-import { createRack } from "./audio-engine.js";
-import { pcmWave, zipFiles } from "./file-formats.js";
-import { SAMPLE_BANKS, applyStylePalette } from "./sound-palette.js";
-import { sessionName } from "./session-names.js";
+} from "./music-engine.js?v=5";
+import {
+  readLibrary,
+  saveProject,
+  importProject,
+} from "./project-store.js?v=5";
+import { createRack } from "./audio-engine.js?v=5";
+import { pcmWave, zipFiles } from "./file-formats.js?v=5";
+import { SAMPLE_BANKS, applyStylePalette } from "./sound-palette.js?v=5";
+import { sessionName } from "./session-names.js?v=5";
 const $ = (id) => document.getElementById(id);
 let project = {
   ...generate(applyStylePalette(DEFAULT_SETTINGS), seed()),
@@ -81,6 +87,7 @@ function changed() {
 function loadControls() {
   for (const n of ["style", "key", "bars", "complexity", "bpm", "rhythm"])
     $(n).value = project.settings[n];
+  $("mood").value = project.settings.mood ?? "auto";
   $("humanize").value = project.settings.humanize * 100;
   $("humanize-value").textContent =
     Math.round(project.settings.humanize * 100) + "%";
@@ -95,6 +102,7 @@ function settingsFromControls() {
     throw Error("Choose a tempo from 45 to 190 BPM.");
   return {
     style: $("style").value,
+    mood: $("mood").value,
     key: Number($("key").value),
     bars: Number($("bars").value),
     complexity: Number($("complexity").value),
@@ -121,7 +129,7 @@ function summary() {
   $("key-description").textContent =
     NOTE_NAMES[project.settings.key] +
     " " +
-    STYLES[project.settings.style].mode +
+    musicalMode(project.settings) +
     " · " +
     project.settings.bars +
     " bars · " +
@@ -436,16 +444,44 @@ function renderParts() {
       input.type = "range";
       input.min = 0;
       input.max = 100;
-      input.step = 5;
+      input.step = 1;
       input.value = Math.round(p[field] * 100);
       input.id = layer + "-" + field;
       input.setAttribute("aria-label", layer + " " + field);
-      input.disabled = p.keep && ["density", "swing"].includes(field);
+      const glideSupported =
+        layer === "bass" &&
+        ["808", "sub", "punch808", "long808"].includes(p.sound);
+      input.disabled =
+        (p.keep && ["density", "swing"].includes(field)) ||
+        (field === "glide" && !glideSupported);
+      input.title =
+        field === "glide"
+          ? glideSupported
+            ? "Slide time between connected bass notes of different pitch"
+            : "Choose an 808 or sub bass to use pitch glide"
+          : field === "density"
+            ? "Write fewer or more notes in this part"
+            : field === "swing"
+              ? "Move from straight eighths toward a swung triplet feel"
+              : "Live part gain, also applied to WAV and MIDI exports";
       const out = document.createElement("output");
       out.textContent = input.value + "%";
-      input.oninput = () => (out.textContent = input.value + "%");
-      input.onchange = () =>
-        partChange(layer, field, Number(input.value) / 100);
+      let recordedUndo = false;
+      input.oninput = () => {
+        if (!recordedUndo) {
+          pushUndo();
+          recordedUndo = true;
+        }
+        out.textContent = input.value + "%";
+        partChange(layer, field, Number(input.value) / 100, true);
+        count.textContent =
+          project.events.filter((e) => e.layer === layer).length +
+          " notes · " +
+          (p.keep ? "protected" : "open to variations");
+      };
+      input.onchange = () => {
+        recordedUndo = false;
+      };
       l.append(text, input, out);
       sliders.append(l);
     }
@@ -480,11 +516,19 @@ function renderParts() {
       " notes · " +
       (p.keep ? "protected" : "open to variations");
     card.append(count);
+    if (layer === "bass") {
+      const hint = document.createElement("div");
+      hint.className = "part-count";
+      hint.textContent = ["808", "sub", "punch808", "long808"].includes(p.sound)
+        ? "Glide connects nearby notes of different pitch; 0% keeps attacks straight."
+        : "Pitch glide is available on 808 and sub bass sounds.";
+      card.append(hint);
+    }
     $("part-cards").append(card);
   }
 }
-function partChange(layer, field, value) {
-  pushUndo();
+function partChange(layer, field, value, live = false) {
+  if (!live) pushUndo();
   project.settings.parts ??= defaultParts();
   project.settings.parts[layer] = {
     ...partSettings(project.settings, layer),
@@ -493,12 +537,18 @@ function partChange(layer, field, value) {
   if (["groove", "density", "swing"].includes(field))
     project = replacePart(project, layer);
   changed();
-  render();
+  if (live) {
+    renderRoll();
+    summary();
+    syncAudio();
+  } else render();
   status(
     layer +
       " " +
-      field +
-      " updated. Other parts stay intact; playback continues.",
+      (field === "volume" ? "level" : field) +
+      " updated" +
+      (live ? " · " + Math.round(value * 100) + "%" : "") +
+      ". Playback continues.",
   );
 }
 async function activate() {
@@ -1112,7 +1162,7 @@ $("generate").onclick = () => {
     status(e.message, true);
   }
 };
-for (const name of ["style", "key", "bars", "complexity"])
+for (const name of ["style", "mood", "key", "bars", "complexity"])
   $(name).onchange = () => {
     try {
       const s =
@@ -1134,7 +1184,10 @@ for (const name of ["style", "key", "bars", "complexity"])
       status(
         name === "style"
           ? "Style palette, bass pocket and melody updated together. Playback continues; kept notes follow the new harmony."
-          : "Harmony updated. Kept parts follow chord changes; the playhead continues.",
+          : name === "mood"
+            ? MOODS[s.mood].name +
+              " · new harmony, phrasing and space. Playback continues."
+            : "Harmony updated. Kept parts follow chord changes; the playhead continues.",
       );
     } catch (e) {
       status(e.message, true);

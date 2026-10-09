@@ -1,3 +1,7 @@
+import { moodProfile, harmonicRoutes, writePart } from "./composition.js?v=5";
+export { MOODS } from "./composition.js?v=5";
+export const musicalMode = (settings) =>
+  moodProfile(settings, STYLES[settings.style]).mode;
 const isLowBass = (sound) =>
   ["808", "sub", "punch808", "long808", "log"].includes(sound);
 const isMonoBass = (sound) => isLowBass(sound) || sound === "finger";
@@ -175,6 +179,7 @@ export const defaultParts = () =>
   Object.fromEntries(PARTS.map((l) => [l, { ...DEFAULT_PART }]));
 export const DEFAULT_SETTINGS = {
   style: "neo_soul",
+  mood: "auto",
   key: 0,
   bars: 8,
   bpm: 92,
@@ -286,7 +291,8 @@ export function makeChord(offset, kind, settings, previous, extra = {}) {
 export function generate(settings, seed, previous = []) {
   const rng = random(seed),
     style = STYLES[settings.style];
-  const pattern = style.patterns[Math.floor(rng() * style.patterns.length)];
+  const routes = harmonicRoutes(settings, style, rng);
+  const mode = musicalMode(settings);
   const chords = [];
   // Quality follows harmonic function, including alternate patterns, rather than a fixed third on every root.
   const majorKinds = {
@@ -305,23 +311,31 @@ export function generate(settings, seed, previous = []) {
       chords.push(clone(previous[bar]));
       continue;
     }
-    let offset = pattern[bar % 4];
+    const returnPhrase = settings.bars >= 16 && bar >= settings.bars - 4;
+    const section = returnPhrase
+      ? "Return"
+      : bar < settings.bars / 2
+        ? bar >= 4
+          ? "A′"
+          : "A"
+        : "B";
+    let offset = routes[section === "B" ? 1 : 0][bar % 4];
     let kind = quality(
-      (style.mode === "major" ? majorKinds : minorKinds)[offset] ?? "maj",
+      (mode === "major" ? majorKinds : minorKinds)[offset] ?? "maj",
       settings.complexity,
     );
     let functionNote = "";
-    if (settings.complexity === 3 && bar % 8 === 6 && style.mode === "major") {
+    if (settings.complexity === 3 && bar % 8 === 6 && mode === "major") {
       offset = 5;
       kind = "m9";
       functionNote = "Borrowed iv · a darker turn";
     }
-    if (settings.complexity === 3 && bar % 8 === 4 && style.mode === "major") {
+    if (settings.complexity === 3 && bar % 8 === 4 && mode === "major") {
       offset = 4;
       kind = "7";
       functionNote = "V/vi · leads into the relative minor";
     }
-    if (settings.complexity === 3 && bar % 8 === 5 && style.mode === "major") {
+    if (settings.complexity === 3 && bar % 8 === 5 && mode === "major") {
       offset = 9;
       kind = "m9";
       functionNote = "Relative minor · resolves the secondary dominant";
@@ -335,7 +349,7 @@ export function generate(settings, seed, previous = []) {
       makeChord(offset, kind, settings, chords.at(-1)?.notes, {
         functionNote,
         ...(functionNote.startsWith("V/vi") ? { roman: "V/vi" } : {}),
-        section: bar < settings.bars / 2 ? "A" : "B",
+        section,
       }),
     );
   }
@@ -347,7 +361,7 @@ export function generate(settings, seed, previous = []) {
   };
 }
 export function alternatives(chord, settings) {
-  const style = STYLES[settings.style];
+  const mode = musicalMode(settings);
   const kind =
     chord.quality.startsWith("m") && !chord.quality.startsWith("maj")
       ? "m"
@@ -364,7 +378,7 @@ export function alternatives(chord, settings) {
     makeChord(chord.offset, q, settings, chord.notes),
   );
   const substitution =
-    style.mode === "major"
+    mode === "major"
       ? makeChord(5, "m9", settings, chord.notes, {
           functionNote: "Borrowed iv",
         })
@@ -373,266 +387,15 @@ export function alternatives(chord, settings) {
         });
   return [...same, substitution];
 }
-function basePerform(chords, settings, seed) {
-  const rng = random(seed ^ 0x5eed),
-    events = [],
-    style = STYLES[settings.style];
-  const rhythm = settings.rhythm === "auto" ? style.rhythm : settings.rhythm;
-  const motif = [0, 2, 1, 3, 2, 1, 0, 2].slice(Math.floor(rng() * 3));
-  let lastMelody = 76;
-  function add(bar, beat, duration, midi, velocity, layer) {
-    const offbeat = Math.abs((beat % 1) - 0.5) < 0.01;
-    const drift = (rng() - 0.5) * 0.05 * settings.humanize;
-    const local = Math.max(
-      0,
-      Math.min(
-        3.95,
-        beat + (offbeat ? style.swing * settings.humanize : 0) + drift,
-      ),
-    );
-    events.push({
-      bar,
-      beat: Math.round((bar * 4 + local) * 10000) / 10000,
-      duration:
-        Math.floor(
-          Math.min(duration, 4 - Math.round(local * 10000) / 10000) * 10000,
-        ) / 10000,
-      midi,
-      velocity: Math.max(
-        0.12,
-        Math.min(0.85, velocity + (rng() - 0.5) * 0.16 * settings.humanize),
-      ),
-      layer,
-    });
-  }
-  chords.forEach((chord, bar) => {
-    const notes = chord.notes;
-    const color = settings.complexity;
-    if (rhythm === "arp" || rhythm === "flow") {
-      const pulses = color === 1 ? 4 : 8;
-      for (let p = 0; p < pulses; p++)
-        add(
-          bar,
-          (p * 4) / pulses,
-          rhythm === "flow" ? 1.7 : 0.75,
-          notes[(p + (bar % 2)) % notes.length],
-          0.65,
-          "keys",
-        );
-    } else {
-      const positions =
-        rhythm === "sustain"
-          ? [0]
-          : rhythm === "bounce"
-            ? [0.5, 1.5, 2.5, 3.5]
-            : color === 1
-              ? [0]
-              : color === 2
-                ? [0, 2.5]
-                : [0, 1.5, 2.75, 3.5];
-      positions.forEach((beat, i) =>
-        notes.forEach((midi, j) =>
-          add(
-            bar,
-            beat + j * 0.012,
-            rhythm === "sustain"
-              ? 3.5
-              : rhythm === "bounce"
-                ? 0.38
-                : i === 0
-                  ? 1.5
-                  : 0.6,
-            midi,
-            0.48,
-            "keys",
-          ),
-        ),
-      );
-    }
-    const bass = 36 + chord.root;
-    add(bar, 0, 1.5, bass, 0.67, "bass");
-    if (color > 1) add(bar, 2.5, 0.7, bar % 2 ? bass + 7 : bass, 0.56, "bass");
-    if (color > 2)
-      add(
-        bar,
-        3.5,
-        0.35,
-        36 + chords[(bar + 1) % chords.length].root,
-        0.43,
-        "bass",
-      );
-    const positions =
-      color === 1
-        ? [1.5, 3]
-        : color === 2
-          ? [0.75, 1.5, 3]
-          : [0.5, 1.25, 2, 2.75, 3.5];
-    positions.forEach((beat, i) => {
-      const pc = notes[motif[(bar + i) % motif.length] % notes.length] % 12;
-      const choices = [60 + pc, 72 + pc, 84 + pc].filter(
-        (n) => n >= 70 && n <= 91,
-      );
-      const midi =
-        choices.sort(
-          (a, b) => Math.abs(a - lastMelody) - Math.abs(b - lastMelody),
-        )[0] ?? 72 + pc;
-      lastMelody = midi;
-      add(
-        bar,
-        beat,
-        i === positions.length - 1 ? 0.85 : 0.4,
-        midi,
-        0.44,
-        "melody",
-      );
-    });
-  });
-  return events.sort((a, b) => a.beat - b.beat || a.midi - b.midi);
-}
 export const activeEvents = (project) =>
   project.events.filter((e) => project.settings.layers[e.layer]);
 
 export function performPart(chords, settings, seed, layer) {
-  const p = partSettings(settings, layer),
-    rng = random(seed ^ p.seed ^ { keys: 111, bass: 222, melody: 333 }[layer]);
-  let events;
-  const color = p.density < 0.3 ? 1 : p.density > 0.7 ? 3 : settings.complexity;
-  if (p.groove === "auto")
-    events = basePerform(
-      chords,
-      { ...settings, complexity: color },
-      seed ^ p.seed,
-    ).filter((e) => e.layer === layer);
-  else if (layer === "keys")
-    events = basePerform(
-      chords,
-      { ...settings, rhythm: p.groove, complexity: color },
-      seed ^ p.seed,
-    ).filter((e) => e.layer === "keys");
-  else {
-    events = [];
-    let last = 76;
-    const motif = [0, 2, 1, 3, 2, 0, 1, 2];
-    const shift = Math.floor(rng() * 4);
-    const dense = p.density > 0.7,
-      sparse = p.density < 0.3;
-    chords.forEach((c, bar) => {
-      let positions;
-      if (layer === "bass")
-        positions =
-          p.groove === "trap"
-            ? dense
-              ? [0, 0.75, 1.5, 2.25, 2.75, 3.5, 3.75]
-              : sparse
-                ? [0, 2.75]
-                : [0, 1.5, 2.75, 3.5]
-            : p.groove === "drill"
-              ? dense
-                ? [0, 0.75, 1.75, 2, 2.75, 3.25, 3.75]
-                : sparse
-                  ? [0, 3.25]
-                  : [0, 1.75, 2.75, 3.25]
-              : p.groove === "pulse"
-                ? dense
-                  ? [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5]
-                  : [0, 1, 2, 3]
-                : sparse
-                  ? [0, 2.5]
-                  : [0, 1.5, 2.5, 3.5];
-      else
-        positions =
-          p.groove === "cinematic"
-            ? dense
-              ? [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5]
-              : sparse
-                ? [0, 2]
-                : [0, 1, 2.5, 3.5]
-            : p.groove === "trap"
-              ? dense
-                ? [0.5, 0.75, 1.5, 1.75, 2.5, 3.25, 3.5, 3.75]
-                : sparse
-                  ? [0.75, 3.25]
-                  : [0.5, 1.5, 2.5, 3.25]
-              : p.groove === "spark"
-                ? sparse
-                  ? [0.5, 2.5]
-                  : [0, 0.5, 1.5, 2, 2.5, 3.5]
-                : sparse
-                  ? [1.5, 3]
-                  : [0.5, 1.25, 2, 2.75, 3.5];
-      if (
-        layer === "bass" &&
-        (p.groove === "trap" || p.groove === "drill") &&
-        rng() > 0.5
-      )
-        positions = positions.map((b, i) =>
-          i === 1 ? Math.max(0.5, b - 0.25) : b,
-        );
-      positions.forEach((beat, i) => {
-        let midi;
-        if (layer === "bass") {
-          const octave = isLowBass(p.sound) ? 24 : 36;
-          const degree =
-            p.groove === "soul" && i % 3 === 1
-              ? 7
-              : (p.groove === "trap" || p.groove === "drill") &&
-                  i === positions.length - 1 &&
-                  bar % 2
-                ? 12
-                : 0;
-          midi = octave + c.root + degree;
-        } else {
-          const pc =
-            c.notes[motif[(bar + i + shift) % motif.length] % c.notes.length] %
-            12;
-          const opts = [60 + pc, 72 + pc, 84 + pc].filter(
-            (n) => n >= 70 && n <= 91,
-          );
-          midi = opts.sort(
-            (a, b) => Math.abs(a - last) - Math.abs(b - last),
-          )[0];
-          last = midi;
-        }
-        const gap = (positions[i + 1] ?? 4) - beat;
-        const drift = (rng() - 0.5) * 0.035 * settings.humanize,
-          at = Math.max(0, Math.min(3.98, beat + drift));
-        events.push({
-          bar,
-          beat: Math.round((bar * 4 + at) * 10000) / 10000,
-          duration: Math.min(
-            gap * 0.82,
-            4 - at,
-            layer === "bass" ? 1.15 : p.groove === "cinematic" ? 1.7 : 0.55,
-          ),
-          midi,
-          velocity:
-            (layer === "bass" ? 0.67 : 0.46) +
-            (rng() - 0.5) * 0.12 * settings.humanize,
-          layer,
-        });
-      });
-    });
-  }
-  // Per-part swing moves offbeats without changing the other two event plans.
-  if (p.groove === "auto" && p.density < 0.3)
-    events = events.filter((e, i) => i % 2 === 0);
-  return events
-    .map((e) => {
-      const off = Math.abs((e.beat % 1) - 0.5) < 0.08;
-      const beat =
-        Math.round(
-          Math.min(
-            (e.bar + 1) * 4 - 0.02,
-            e.beat + (off ? p.swing * 0.22 : 0),
-          ) * 10000,
-        ) / 10000;
-      return {
-        ...e,
-        beat,
-        duration: Math.max(0.01, Math.min(e.duration, (e.bar + 1) * 4 - beat)),
-      };
-    })
-    .sort((a, b) => a.beat - b.beat || a.midi - b.midi);
+  const p = partSettings(settings, layer);
+  const rng = random(
+    seed ^ p.seed ^ { keys: 111, bass: 222, melody: 333 }[layer],
+  );
+  return writePart(chords, settings, rng, layer, p, STYLES[settings.style]);
 }
 export function perform(chords, settings, seed) {
   return PARTS.flatMap((l) => performPart(chords, settings, seed, l)).sort(
