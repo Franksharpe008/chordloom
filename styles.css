@@ -263,7 +263,7 @@ select {
 }
 .controls {
   display: grid;
-  grid-template-columns: 1fr 1.2fr 0.5fr 1fr 1.3fr auto;
+  grid-template-columns: 1.1fr 0.6fr 1fr 1.4fr auto;
   gap: 12px;
   padding: 20px;
   background: var(--panel);

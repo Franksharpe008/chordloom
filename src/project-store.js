@@ -1,12 +1,11 @@
 import {
   STYLES,
-  MOODS,
   SOUNDS,
   GROOVES,
   PARTS,
   defaultParts,
   clone,
-} from "./music-engine.js?v=5";
+} from "./music-engine.js";
 export const STORAGE_KEY = "chordloom.projects.v1";
 export function validateProject(project) {
   const s = project?.settings;
@@ -16,7 +15,6 @@ export function validateProject(project) {
     project.title.length > 100 ||
     !s ||
     !STYLES[s.style] ||
-    (s.mood !== undefined && !Object.hasOwn(MOODS, s.mood)) ||
     !Number.isInteger(s.key) ||
     s.key < 0 ||
     s.key > 11 ||
